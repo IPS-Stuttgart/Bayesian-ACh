@@ -1,0 +1,21 @@
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+.coverage
+.coverage.*
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+.venv/
+venv/
+.env
+.DS_Store
+
+# Generated evidence. Keep README files and explicitly locked artifacts only.
+results/**
+!results/README.md
+data/**
+!data/README.md

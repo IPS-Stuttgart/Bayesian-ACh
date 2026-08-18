@@ -1,0 +1,169 @@
+"""Command-line evidence generation for Bayesian-ACh."""
+
+from __future__ import annotations
+
+import argparse
+from collections import defaultdict
+from collections.abc import Sequence
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+
+from bayesian_ach.io import write_json, write_rows_csv
+from bayesian_ach.model_recovery import fit_candidate_models, generate_synthetic_ach
+from bayesian_ach.signals import CANDIDATE_SIGNAL_NAMES
+from bayesian_ach.simulation import (
+    FactorialDesignConfig,
+    MatchedConfidenceConfig,
+    simulate_factorial_design,
+    simulate_matched_confidence,
+)
+
+
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="bayesian-ach",
+        description="Generate falsifiable Bayesian-ACh synthetic evidence.",
+    )
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    dissociate = subparsers.add_parser(
+        "dissociate",
+        help="run the paired matched-confidence experiment",
+    )
+    dissociate.add_argument("--output", type=Path, required=True)
+    dissociate.add_argument("--pairs", type=int, default=512)
+    dissociate.add_argument("--states", type=int, default=4)
+    dissociate.add_argument("--low-concentration", type=float, default=4.0)
+    dissociate.add_argument("--high-concentration", type=float, default=128.0)
+    dissociate.add_argument("--seed", type=int, default=7)
+
+    benchmark = subparsers.add_parser(
+        "benchmark",
+        help="run factorial simulation and held-out model recovery",
+    )
+    benchmark.add_argument("--output", type=Path, required=True)
+    benchmark.add_argument("--trials", type=int, default=4096)
+    benchmark.add_argument("--states", type=int, default=5)
+    benchmark.add_argument("--noise-std", type=float, default=0.25)
+    benchmark.add_argument("--seed", type=int, default=7)
+
+    return parser
+
+
+def _mean_by_condition(rows: Sequence[dict[str, Any]], field: str) -> dict[str, float]:
+    values: dict[str, list[float]] = defaultdict(list)
+    for row in rows:
+        values[str(row["condition"])].append(float(row[field]))
+    return {condition: float(np.mean(items)) for condition, items in sorted(values.items())}
+
+
+def _run_dissociate(args: argparse.Namespace) -> int:
+    config = MatchedConfidenceConfig(
+        n_pairs=args.pairs,
+        n_states=args.states,
+        low_concentration=args.low_concentration,
+        high_concentration=args.high_concentration,
+        seed=args.seed,
+    )
+    rows = simulate_matched_confidence(config)
+    args.output.mkdir(parents=True, exist_ok=True)
+    write_rows_csv(args.output / "matched_confidence.csv", rows)
+
+    max_pair_mismatch: dict[str, float] = {}
+    for field in ("predictive_probability", "innovation_l2", "surprise"):
+        mismatches = []
+        for pair_id in range(config.n_pairs):
+            low, high = rows[2 * pair_id], rows[2 * pair_id + 1]
+            mismatches.append(abs(float(low[field]) - float(high[field])))
+        max_pair_mismatch[field] = max(mismatches, default=0.0)
+
+    summary = {
+        "experiment": "matched_confidence",
+        "config": {
+            "n_pairs": config.n_pairs,
+            "n_states": config.n_states,
+            "low_concentration": config.low_concentration,
+            "high_concentration": config.high_concentration,
+            "seed": config.seed,
+        },
+        "condition_means": {
+            field: _mean_by_condition(rows, field)
+            for field in CANDIDATE_SIGNAL_NAMES
+        },
+        "max_paired_mismatch_for_matched_quantities": max_pair_mismatch,
+        "interpretation": (
+            "Raw prediction and observation quantities are pair-matched; Bayesian gain and "
+            "posterior-update quantities differ because concentration differs."
+        ),
+    }
+    write_json(args.output / "summary.json", summary)
+    print(f"Wrote matched-confidence evidence to {args.output}")
+    return 0
+
+
+def _run_benchmark(args: argparse.Namespace) -> int:
+    config = FactorialDesignConfig(
+        n_trials=args.trials,
+        n_states=args.states,
+        seed=args.seed,
+    )
+    rows = simulate_factorial_design(config)
+    args.output.mkdir(parents=True, exist_ok=True)
+    write_rows_csv(args.output / "trials.csv", rows)
+
+    recovery_rows: list[dict[str, Any]] = []
+    winners: dict[str, str] = {}
+    for generator_index, generator in enumerate(CANDIDATE_SIGNAL_NAMES):
+        ach = generate_synthetic_ach(
+            rows,
+            generator,
+            noise_std=args.noise_std,
+            seed=args.seed + 1009 * (generator_index + 1),
+        )
+        fits = fit_candidate_models(
+            rows,
+            ach,
+            seed=args.seed + 2027 * (generator_index + 1),
+        )
+        winners[generator] = fits[0].candidate
+        for rank, fit in enumerate(fits, start=1):
+            result = {"generator": generator, "rank": rank}
+            result.update(fit.as_dict())
+            recovery_rows.append(result)
+
+    write_rows_csv(args.output / "model_recovery.csv", recovery_rows)
+    recovery_count = sum(generator == winner for generator, winner in winners.items())
+    summary = {
+        "experiment": "factorial_model_recovery",
+        "config": {
+            "n_trials": config.n_trials,
+            "n_states": config.n_states,
+            "noise_std": args.noise_std,
+            "seed": config.seed,
+        },
+        "winners": winners,
+        "self_recovery_count": recovery_count,
+        "candidate_count": len(CANDIDATE_SIGNAL_NAMES),
+        "all_generators_recovered": recovery_count == len(CANDIDATE_SIGNAL_NAMES),
+    }
+    write_json(args.output / "summary.json", summary)
+    print(
+        f"Wrote model-recovery evidence to {args.output}; "
+        f"self-recovered {recovery_count}/{len(CANDIDATE_SIGNAL_NAMES)} generators"
+    )
+    return 0
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = _parser().parse_args(argv)
+    if args.command == "dissociate":
+        return _run_dissociate(args)
+    if args.command == "benchmark":
+        return _run_benchmark(args)
+    raise AssertionError(f"unhandled command {args.command!r}")
+
+
+if __name__ == "__main__":  # pragma: no cover
+    raise SystemExit(main())
