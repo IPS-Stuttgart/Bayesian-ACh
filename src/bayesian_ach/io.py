@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import csv
 import json
+from collections.abc import Mapping, Sequence
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any
 
 
 def write_rows_csv(path: Path, rows: Sequence[Mapping[str, Any]]) -> None:
