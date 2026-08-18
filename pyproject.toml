@@ -1,0 +1,83 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bayesian-ach"
+version = "0.1.0"
+description = "Bayesian model-recovery benchmarks for hippocampal acetylcholine hypotheses"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{name = "Florian Pfaff"}]
+keywords = [
+  "acetylcholine",
+  "bayesian-estimation",
+  "hippocampus",
+  "model-recovery",
+  "predictive-learning",
+  "state-transition",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Science/Research",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: Scientific/Engineering :: Information Analysis",
+  "Typing :: Typed",
+]
+dependencies = [
+  "numpy>=1.24",
+  "scipy>=1.10",
+]
+
+[project.urls]
+Repository = "https://github.com/IPS-Stuttgart/Bayesian-ACh"
+Documentation = "https://github.com/IPS-Stuttgart/Bayesian-ACh/tree/main/docs"
+Issues = "https://github.com/IPS-Stuttgart/Bayesian-ACh/issues"
+Citation = "https://github.com/IPS-Stuttgart/Bayesian-ACh/blob/main/CITATION.cff"
+Motivating-Perspective = "https://doi.org/10.1038/s41583-026-01058-w"
+
+[project.optional-dependencies]
+dev = [
+  "build>=1.2",
+  "mypy>=1.11",
+  "pytest>=8.0",
+  "pytest-cov>=5.0",
+  "ruff>=0.6",
+]
+plot = ["matplotlib>=3.8"]
+
+[project.scripts]
+bayesian-ach = "bayesian_ach.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+bayesian_ach = ["py.typed"]
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-markers"
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.10"
+check_untyped_defs = true
+ignore_missing_imports = true
+no_implicit_optional = true
+show_error_codes = true
+warn_unused_ignores = true
