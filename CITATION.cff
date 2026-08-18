@@ -1,0 +1,25 @@
+cff-version: 1.2.0
+message: "Please cite this software and the motivating Nature Reviews Neuroscience Perspective."
+title: "Bayesian-ACh: Bayesian model-recovery benchmarks for hippocampal acetylcholine hypotheses"
+type: software
+authors:
+  - family-names: Pfaff
+    given-names: Florian
+repository-code: "https://github.com/IPS-Stuttgart/Bayesian-ACh"
+url: "https://github.com/IPS-Stuttgart/Bayesian-ACh"
+version: 0.1.0
+date-released: 2026-08-19
+license: MIT
+preferred-citation:
+  type: article
+  title: "Acetylcholine: a candidate substrate for hippocampal predictive learning?"
+  authors:
+    - family-names: de Cothi
+      given-names: William
+    - family-names: Shipley
+      given-names: Sarah
+    - family-names: Barry
+      given-names: Caswell
+  journal: Nature Reviews Neuroscience
+  year: 2026
+  doi: "10.1038/s41583-026-01058-w"
