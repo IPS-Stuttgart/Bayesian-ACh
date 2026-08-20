@@ -15,6 +15,10 @@ from bayesian_ach.attribution import (
     run_observation_attribution,
 )
 from bayesian_ach.io import write_json, write_rows_csv
+from bayesian_ach.measurement_benchmark import (
+    MeasurementBenchmarkConfig,
+    run_measurement_benchmark,
+)
 from bayesian_ach.model_recovery import fit_candidate_models, generate_synthetic_ach
 from bayesian_ach.regime import RegimeRecoveryConfig, run_regime_recovery
 from bayesian_ach.signals import CANDIDATE_SIGNAL_NAMES
@@ -88,6 +92,19 @@ def _parser() -> argparse.ArgumentParser:
     observation.add_argument("--mechanism-switch-probability", type=float, default=0.03)
     observation.add_argument("--fault-recovery-probability", type=float, default=0.01)
     observation.add_argument("--seed", type=int, default=7)
+
+    measurement = subparsers.add_parser(
+        "measurement-benchmark",
+        help="recover Bayesian event signals through ACh measurement dynamics",
+    )
+    measurement.add_argument("--output", type=Path, required=True)
+    measurement.add_argument("--subjects", type=int, default=6)
+    measurement.add_argument("--sessions-per-subject", type=int, default=5)
+    measurement.add_argument("--train-sessions-per-subject", type=int, default=3)
+    measurement.add_argument("--calibration-length", type=int, default=112)
+    measurement.add_argument("--task-length", type=int, default=144)
+    measurement.add_argument("--dt", type=float, default=0.2)
+    measurement.add_argument("--seed", type=int, default=7)
 
     return parser
 
@@ -255,6 +272,37 @@ def _run_observation_benchmark(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_measurement_benchmark(args: argparse.Namespace) -> int:
+    config = MeasurementBenchmarkConfig(
+        n_subjects=args.subjects,
+        sessions_per_subject=args.sessions_per_subject,
+        train_sessions_per_subject=args.train_sessions_per_subject,
+        calibration_length=args.calibration_length,
+        task_length=args.task_length,
+        dt=args.dt,
+        seed=args.seed,
+    )
+    result = run_measurement_benchmark(config)
+    args.output.mkdir(parents=True, exist_ok=True)
+    write_rows_csv(
+        args.output / "measurement_generators.csv",
+        [generator.as_dict() for generator in result.generators],
+    )
+    write_rows_csv(args.output / "measurement_fits.csv", result.fits)
+    write_rows_csv(
+        args.output / "measurement_kernel_posterior.csv",
+        result.kernel_posteriors,
+    )
+    write_rows_csv(args.output / "measurement_samples.csv", result.samples)
+    write_json(args.output / "summary.json", result.summary)
+    print(
+        f"Wrote ACh measurement-model evidence to {args.output}; "
+        f"recovered {result.summary['recovery_count']}/"
+        f"{result.summary['candidate_count']} generating signals"
+    )
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     if args.command == "dissociate":
@@ -265,6 +313,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_regime_benchmark(args)
     if args.command == "observation-benchmark":
         return _run_observation_benchmark(args)
+    if args.command == "measurement-benchmark":
+        return _run_measurement_benchmark(args)
     raise AssertionError(f"unhandled command {args.command!r}")
 
 
