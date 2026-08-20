@@ -31,6 +31,19 @@ jobs:
           tar -xzf /tmp/bayesian-ach-v0.5.tar.gz -C .bootstrap_v0_5
       - name: Apply verified overlay
         run: python .bootstrap_v0_5/apply_v0_5.py --repo . --force
+      - name: Normalize posterior NumPy dtypes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("src/bayesian_ach/closed_loop.py")
+          text = path.read_text(encoding="utf-8")
+          old = """    covariance = np.linalg.inv(precision)\n    mean = covariance @ (design.T @ outcome / noise_variance)\n    return mean, covariance\n"""
+          new = """    covariance = np.asarray(np.linalg.inv(precision), dtype=np.float64)\n    mean = np.asarray(\n        covariance @ (design.T @ outcome / noise_variance),\n        dtype=np.float64,\n    )\n    return mean, covariance\n"""
+          if old not in text:
+              raise SystemExit("expected closed-loop posterior block was not found")
+          path.write_text(text.replace(old, new), encoding="utf-8")
+          PY
       - name: Install development dependencies
         run: |
           python -m pip install --upgrade pip
