@@ -116,6 +116,22 @@ def _health_transition(values: ArrayLike, n_sensors: int) -> NDArray[np.float64]
     return _normalize_rows(array, name="sensor_health_transition")
 
 
+def _initial_sensor_health(
+    values: ArrayLike | None,
+    n_sensors: int,
+) -> NDArray[np.float64]:
+    if values is None:
+        array = np.zeros((n_sensors, 2), dtype=float)
+        array[:, 0] = 1.0
+        return array
+    array = np.asarray(values, dtype=float)
+    if array.shape != (n_sensors, 2):
+        raise ValueError(
+            f"initial_sensor_health must have shape ({n_sensors}, 2); got {array.shape}"
+        )
+    return _normalize_rows(array, name="initial_sensor_health")
+
+
 def _emission_probabilities(
     values: Sequence[ArrayLike],
     *,
@@ -267,20 +283,7 @@ class MultisensoryContextFilter:
             if initial_state is None
             else _normalize_vector(initial_state, name="initial_state", size=n_states)
         )
-        if initial_sensor_health is None:
-            sensor_health = np.zeros((n_sensors, 2), dtype=float)
-            sensor_health[:, 0] = 1.0
-        else:
-            sensor_health = np.asarray(initial_sensor_health, dtype=float)
-            if sensor_health.shape != (n_sensors, 2):
-                raise ValueError(
-                    f"initial_sensor_health must have shape ({n_sensors}, 2); "
-                    f"got {sensor_health.shape}"
-                )
-            sensor_health = _normalize_rows(
-                sensor_health,
-                name="initial_sensor_health",
-            )
+        sensor_health = _initial_sensor_health(initial_sensor_health, n_sensors)
         health_prior = np.prod(
             sensor_health[
                 np.arange(n_sensors, dtype=int)[None, :],
