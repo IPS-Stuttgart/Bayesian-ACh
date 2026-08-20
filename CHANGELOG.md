@@ -2,6 +2,28 @@
 
 All notable changes to Bayesian-ACh will be documented here.
 
+## 0.5.0 — 2026-08-21
+
+- Added a stateful causal trigger policy with signal thresholding, uncertainty
+  gating, balanced randomized latency assignment, jitter, refractory periods,
+  missed commands, and randomized background commands.
+- Added explicit command-to-effective ACh transport delay and separate event,
+  command, and effective timestamps.
+- Added normalized exponential, rise-and-decay, and boxcar eligibility-trace
+  families with reported effective and command-time causal windows.
+- Added yoked active/sham scheduling and active-minus-sham outcomes with strict
+  training-session fitting and held-out-session joint predictive scoring.
+- Added conservative nested comparison of null, latency-independent, and
+  latency-dependent causal hypotheses.
+- Added an explicit delay-identifiability result: a constant delay is confounded
+  with amplitude for a monotone exponential trace and must be independently
+  calibrated or handled by sensitivity analysis.
+- Added five-way closed-loop mechanism recovery, false-trigger negative
+  controls, 30-seed stress evidence, documentation, plotting support, tests,
+  and CI smoke coverage.
+- Added `bayesian-ach closed-loop-benchmark` and complete CSV/JSON evidence
+  exports.
+
 ## 0.4.0 — 2026-08-20
 
 - Added a forward ACh measurement model with subject-specific phasic release,

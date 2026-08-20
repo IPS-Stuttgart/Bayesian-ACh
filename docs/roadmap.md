@@ -89,18 +89,39 @@ Acceptance evidence for the default seed-7 benchmark:
 These are controlled synthetic recovery results, not biological evidence about
 ACh coding.
 
-## 0.5 — Closed-loop and delayed feedback — next
+## 0.5 — Closed-loop and delayed feedback — complete
 
-- Online candidate-signal and uncertainty API.
-- Explicit septo-hippocampal transport delay.
-- Local eligibility traces with candidate decay families.
-- Trigger latency, jitter, refractory period, and false-trigger modeling.
-- Closed-loop stimulation and sham policies receiving identical observations.
-- Recovery of the eligibility timescale and causal stimulation window.
-- Preregistered falsification criteria based on delay-dependent plasticity, not
-  merely a main effect of stimulation.
+- Stateful online candidate-signal and uncertainty trigger API.
+- Balanced randomized command latencies independent of event generation.
+- Explicit event, command, and effective timestamps with calibrated transport
+  delay and realized latency jitter.
+- Uncertainty gating, refractory suppression, missed commands, and randomized
+  below-threshold background commands.
+- Normalized exponential, rise-and-decay, and finite boxcar eligibility traces.
+- Yoked active/sham policies receiving identical schedules and command times.
+- Active-minus-sham causal outcomes with training-session coefficient fitting
+  and held-out-session joint predictive comparison.
+- Conservative nested claim threshold separating no effect, an untimed main
+  effect, and latency-dependent eligibility gating.
+- Explicit proof and sensitivity interface for delay/amplitude confounding.
 
-## 0.6 — Replay and smoothing
+Acceptance evidence for the default seed-7 benchmark:
+
+- 8 subjects, 5 sessions per subject, and 96 opportunities per session;
+- 2,236 accepted yoked active/sham pairs, including 29 false-positive or
+  randomized background events;
+- 5/5 causal generators recovered: null, latency independent, exponential,
+  rise-and-decay, and boxcar;
+- minimum and median conservative decision margins: 3.474 and 376.937 log units
+  beyond the preregistered claim boundary;
+- active and sham command timestamps identical to numerical precision;
+- 30-seed stress check: 150/150 generator decisions correct, with minimum
+  decision margin 1.963 log units beyond the claim boundary.
+
+These are controlled synthetic recovery results, not biological evidence for a
+particular eligibility family or timescale.
+
+## 0.6 — Replay and smoothing — next
 
 - Filtering-versus-smoothing belief corrections.
 - Smoothed transition-count revisions during replay.

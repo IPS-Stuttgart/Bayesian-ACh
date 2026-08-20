@@ -62,6 +62,14 @@ jobs:
           --calibration-length 40
           --task-length 80
           --seed 11
+      - run: >-
+          bayesian-ach closed-loop-benchmark
+          --output /tmp/bayesian-ach-closed-loop-smoke
+          --subjects 5
+          --sessions-per-subject 4
+          --train-sessions-per-subject 2
+          --opportunities-per-session 72
+          --seed 11
 
   build:
     runs-on: ubuntu-latest
