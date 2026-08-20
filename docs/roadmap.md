@@ -27,9 +27,6 @@ Acceptance evidence for the default seed-7 benchmark:
 - median context-minus-change-point log-evidence margin: +12.387 for known
   switches and -206.679 for structural resets.
 
-These are controlled synthetic recovery results, not biological evidence about
-ACh coding.
-
 ## 0.3 — Partial observations and sensor fusion — complete
 
 - Exact filtering over latent state, transition context, and the complete binary
@@ -40,7 +37,7 @@ ACh coding.
 - State, context, and sensor-health information gain.
 - Per-sensor posterior fault and fault-onset probabilities.
 - Posterior context-switch probability under partial observation.
-- Jensen--Shannon diagnostics for state and context disagreement across sensors.
+- Jensen–Shannon diagnostics for state and context disagreement across sensors.
 - Exhaustive-enumeration verification of the one-step joint posterior.
 - Three-way prequential recovery of visual sensor fault, known context switch,
   and a specified structural transition change.
@@ -59,25 +56,49 @@ The structural arm is exact for a preregistered candidate kernel. Arbitrary
 unseen transition learning under hidden-state uncertainty remains an explicit
 open-set problem rather than an implied conjugate update.
 
-## 0.4 — ACh measurement model — next
+## 0.4 — ACh measurement model — complete
 
-- Latent phasic and tonic release processes.
-- Indicator impulse-response convolution and deconvolution uncertainty.
-- Movement, acceleration, task engagement, arousal, pupil, and theta nuisance
-  components.
-- Candidate computational event trains generated from the same latent belief
-  trajectory.
-- Hierarchical subject/session effects.
-- Strict train/test separation for sensor-kernel estimation and ACh hypothesis
-  comparison.
-- Simulation-based recovery of release timescale, nuisance effects, and the
-  generating Bayesian signal.
+- Seven candidate computational event trains generated from the same exact
+  partial-observation belief trajectory.
+- Subject-specific phasic release coefficients with Gaussian-ridge partial
+  pooling.
+- Latent stationary AR(1) tonic release.
+- Shared causal difference-of-exponentials indicator dynamics for phasic and
+  tonic release.
+- Exact conditional AR(3) whitening of the tonic sensor residual.
+- Calibration-only discrete posterior over rise, decay, and tonic-persistence
+  hypotheses.
+- Movement, acceleration, pupil, theta, and engagement nuisance regressors.
+- Baseline-only session-offset estimation, including held-out sessions.
+- Strict separation of calibration, training-task, and held-out-task samples.
+- Held-out candidate scoring marginalized over calibration-grid uncertainty.
+- Explicit limitations for plug-in regression coefficients, finite grids, and
+  omitted independent white sensor noise.
 
-## 0.5 — Closed-loop and delayed feedback
+Acceptance evidence for the default seed-7 benchmark:
 
-- Online estimator and trigger API.
-- Eligibility-trace and septo-hippocampal delay model.
-- Latency-sweep design and preregistered falsification criteria.
+- 6 subjects, 5 sessions per subject, and 2 held-out sessions per subject;
+- 7/7 computational generators recovered;
+- median and minimum held-out log-evidence margins: 771.532 and 421.096;
+- calibration MAP exactly recovers \(\tau_r=0.4\), \(\tau_d=1.6\), and
+  \(\rho=0.97\);
+- median nuisance-coefficient MAE: 0.00749;
+- median subject-signal correlation: 0.99769;
+- maximum absolute post-sensor candidate correlation: 0.88880.
+
+These are controlled synthetic recovery results, not biological evidence about
+ACh coding.
+
+## 0.5 — Closed-loop and delayed feedback — next
+
+- Online candidate-signal and uncertainty API.
+- Explicit septo-hippocampal transport delay.
+- Local eligibility traces with candidate decay families.
+- Trigger latency, jitter, refractory period, and false-trigger modeling.
+- Closed-loop stimulation and sham policies receiving identical observations.
+- Recovery of the eligibility timescale and causal stimulation window.
+- Preregistered falsification criteria based on delay-dependent plasticity, not
+  merely a main effect of stimulation.
 
 ## 0.6 — Replay and smoothing
 
