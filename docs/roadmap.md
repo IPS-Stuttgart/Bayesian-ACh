@@ -30,22 +30,48 @@ Acceptance evidence for the default seed-7 benchmark:
 These are controlled synthetic recovery results, not biological evidence about
 ACh coding.
 
-## 0.3 — Partial observations and sensor fusion — next
+## 0.3 — Partial observations and sensor fusion — complete
 
-- State-space observation model for visual, vestibular, proprioceptive, and cue
-  channels.
-- Modality-reliability inference.
-- Robust sensor-corruption alternatives.
-- Dissociation of observation innovation from state mislocalization, context
-  change, and transition-model change.
-- Simulation-based recovery across sensory conflict and reliability levels.
+- Exact filtering over latent state, transition context, and the complete binary
+  sensor-health configuration.
+- Health-, context-, and state-dependent categorical observation models.
+- Visual, proprioceptive, and context-cue channels in the identifying benchmark.
+- Missing-modality support and modality-only nominal-health posteriors.
+- State, context, and sensor-health information gain.
+- Per-sensor posterior fault and fault-onset probabilities.
+- Posterior context-switch probability under partial observation.
+- Jensen--Shannon diagnostics for state and context disagreement across sensors.
+- Exhaustive-enumeration verification of the one-step joint posterior.
+- Three-way prequential recovery of visual sensor fault, known context switch,
+  and a specified structural transition change.
+- Configurable fault and structural similarity with explicit total-variation
+  identifiability warnings.
 
-## 0.4 — ACh measurement model
+Acceptance evidence for the default seed-7 benchmark:
 
-- Latent phasic/tonic release process.
-- Indicator impulse-response convolution.
-- Movement, task engagement, arousal, and theta nuisance components.
-- Hierarchical subject/session effects with held-out prediction.
+- 36 visual-fault, 36 known-context-switch, and 36 structural-change sequences;
+- balanced model-class recovery accuracy: 1.000;
+- 108/108 sequence decisions correct;
+- median winning log-evidence margins: 57.786, 77.689, and 58.761 respectively;
+- minimum sequence evidence margin: 35.188.
+
+The structural arm is exact for a preregistered candidate kernel. Arbitrary
+unseen transition learning under hidden-state uncertainty remains an explicit
+open-set problem rather than an implied conjugate update.
+
+## 0.4 — ACh measurement model — next
+
+- Latent phasic and tonic release processes.
+- Indicator impulse-response convolution and deconvolution uncertainty.
+- Movement, acceleration, task engagement, arousal, pupil, and theta nuisance
+  components.
+- Candidate computational event trains generated from the same latent belief
+  trajectory.
+- Hierarchical subject/session effects.
+- Strict train/test separation for sensor-kernel estimation and ACh hypothesis
+  comparison.
+- Simulation-based recovery of release timescale, nuisance effects, and the
+  generating Bayesian signal.
 
 ## 0.5 — Closed-loop and delayed feedback
 
