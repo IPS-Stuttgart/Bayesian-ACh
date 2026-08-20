@@ -55,13 +55,12 @@ jobs:
           mypy src/bayesian_ach
           pytest --cov=bayesian_ach --cov-report=term-missing
           python -m build
-      - name: Commit applied milestone
+      - name: Commit scientific milestone
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          rm -rf .bootstrap_v0_5 .github/workflows/apply-v0-5.yml
+          rm -rf .bootstrap_v0_5
           git add -- \
-            .github/workflows/ci.yml \
             CHANGELOG.md \
             CITATION.cff \
             README.md \
@@ -76,8 +75,8 @@ jobs:
             src/bayesian_ach/closed_loop_benchmark.py \
             tests/test_closed_loop.py \
             tests/test_closed_loop_cli.py
-          git add -u -- .bootstrap_v0_5 .github/workflows/apply-v0-5.yml
+          git add -u -- .bootstrap_v0_5
           git commit \
             -m "Add delayed closed-loop eligibility recovery" \
             -m "Introduce causal triggering, calibrated transport delay, yoked active/sham controls, held-out eligibility-family recovery, version 0.5 documentation, tests, and CI evidence. [v0.5 applied]"
-          git push origin "HEAD:${GITHUB_REF_NAME}"
+          git push origin "HEAD:agent/closed-loop-eligibility-v0.5"
