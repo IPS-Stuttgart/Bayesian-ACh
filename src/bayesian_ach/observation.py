@@ -121,15 +121,16 @@ def _initial_sensor_health(
     n_sensors: int,
 ) -> NDArray[np.float64]:
     if values is None:
-        array = np.zeros((n_sensors, 2), dtype=float)
-        array[:, 0] = 1.0
-        return array
-    array = np.asarray(values, dtype=float)
-    if array.shape != (n_sensors, 2):
+        default_health = np.zeros((n_sensors, 2), dtype=float)
+        default_health[:, 0] = 1.0
+        return np.asarray(default_health, dtype=float)
+    supplied_health = np.asarray(values, dtype=float)
+    if supplied_health.shape != (n_sensors, 2):
         raise ValueError(
-            f"initial_sensor_health must have shape ({n_sensors}, 2); got {array.shape}"
+            "initial_sensor_health must have shape "
+            f"({n_sensors}, 2); got {supplied_health.shape}"
         )
-    return _normalize_rows(array, name="initial_sensor_health")
+    return _normalize_rows(supplied_health, name="initial_sensor_health")
 
 
 def _emission_probabilities(
