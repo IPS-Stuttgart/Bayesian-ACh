@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "bayesian-ach"
-version = "0.2.0"
+version = "0.3.0"
 description = "Bayesian model-recovery benchmarks for hippocampal acetylcholine hypotheses"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -18,7 +18,10 @@ keywords = [
   "hidden-markov-model",
   "hippocampus",
   "model-recovery",
+  "multisensor-fusion",
+  "partial-observation",
   "predictive-learning",
+  "sensor-reliability",
   "state-transition",
 ]
 classifiers = [
