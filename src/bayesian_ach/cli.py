@@ -12,6 +12,7 @@ import numpy as np
 
 from bayesian_ach.io import write_json, write_rows_csv
 from bayesian_ach.model_recovery import fit_candidate_models, generate_synthetic_ach
+from bayesian_ach.regime import RegimeRecoveryConfig, run_regime_recovery
 from bayesian_ach.signals import CANDIDATE_SIGNAL_NAMES
 from bayesian_ach.simulation import (
     FactorialDesignConfig,
@@ -48,6 +49,22 @@ def _parser() -> argparse.ArgumentParser:
     benchmark.add_argument("--states", type=int, default=5)
     benchmark.add_argument("--noise-std", type=float, default=0.25)
     benchmark.add_argument("--seed", type=int, default=7)
+
+    regime = subparsers.add_parser(
+        "regime-benchmark",
+        help="recover known context switches versus structural resets",
+    )
+    regime.add_argument("--output", type=Path, required=True)
+    regime.add_argument("--sequences-per-class", type=int, default=48)
+    regime.add_argument("--pre-length", type=int, default=64)
+    regime.add_argument("--post-length", type=int, default=96)
+    regime.add_argument("--states", type=int, default=4)
+    regime.add_argument("--known-concentration", type=float, default=256.0)
+    regime.add_argument("--novel-similarity", type=float, default=0.0)
+    regime.add_argument("--reset-concentration", type=float, default=1.0)
+    regime.add_argument("--context-switch-probability", type=float, default=0.02)
+    regime.add_argument("--change-hazard", type=float, default=0.02)
+    regime.add_argument("--seed", type=int, default=7)
 
     return parser
 
@@ -156,12 +173,42 @@ def _run_benchmark(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_regime_benchmark(args: argparse.Namespace) -> int:
+    config = RegimeRecoveryConfig(
+        n_sequences_per_class=args.sequences_per_class,
+        pre_length=args.pre_length,
+        post_length=args.post_length,
+        n_states=args.states,
+        known_concentration=args.known_concentration,
+        novel_similarity=args.novel_similarity,
+        reset_concentration=args.reset_concentration,
+        context_switch_probability=args.context_switch_probability,
+        change_hazard=args.change_hazard,
+        seed=args.seed,
+    )
+    result = run_regime_recovery(config)
+    args.output.mkdir(parents=True, exist_ok=True)
+    write_rows_csv(
+        args.output / "regime_sequences.csv",
+        [sequence.as_dict() for sequence in result.sequences],
+    )
+    write_rows_csv(args.output / "regime_trials.csv", result.trials)
+    write_json(args.output / "summary.json", result.summary)
+    print(
+        f"Wrote regime-recovery evidence to {args.output}; "
+        f"balanced accuracy {result.summary['balanced_accuracy']:.3f}"
+    )
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     if args.command == "dissociate":
         return _run_dissociate(args)
     if args.command == "benchmark":
         return _run_benchmark(args)
+    if args.command == "regime-benchmark":
+        return _run_regime_benchmark(args)
     raise AssertionError(f"unhandled command {args.command!r}")
 
 

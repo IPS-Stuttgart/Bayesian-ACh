@@ -39,6 +39,13 @@ jobs:
       - run: python -m pip install -e '.[dev]'
       - run: pytest --cov=bayesian_ach --cov-report=term-missing
       - run: bayesian-ach dissociate --output /tmp/bayesian-ach-smoke --pairs 32 --seed 11
+      - run: >-
+          bayesian-ach regime-benchmark
+          --output /tmp/bayesian-ach-regime-smoke
+          --sequences-per-class 4
+          --pre-length 16
+          --post-length 24
+          --seed 11
 
   build:
     runs-on: ubuntu-latest

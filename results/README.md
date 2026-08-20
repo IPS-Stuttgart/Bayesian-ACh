@@ -7,6 +7,7 @@ Create local evidence with:
 ```bash
 bayesian-ach dissociate --output results/dissociation
 bayesian-ach benchmark --output results/benchmark
+bayesian-ach regime-benchmark --output results/regime-recovery
 ```
 
 A result should be committed only when it is intentionally designated as a
