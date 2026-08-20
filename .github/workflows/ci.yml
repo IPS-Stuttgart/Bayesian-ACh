@@ -46,6 +46,13 @@ jobs:
           --pre-length 16
           --post-length 24
           --seed 11
+      - run: >-
+          bayesian-ach observation-benchmark
+          --output /tmp/bayesian-ach-observation-smoke
+          --sequences-per-class 3
+          --pre-length 8
+          --post-length 12
+          --seed 11
 
   build:
     runs-on: ubuntu-latest
