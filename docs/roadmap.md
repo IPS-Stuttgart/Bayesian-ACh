@@ -1,6 +1,6 @@
 # Roadmap
 
-## 0.1 — Exact finite-state benchmark
+## 0.1 — Exact finite-state benchmark — complete
 
 - Exact Dirichlet transition updates.
 - Six trial-wise candidate signals.
@@ -8,20 +8,37 @@
 - Factorial synthetic model recovery.
 - CLI, tests, CI, and scientific documentation.
 
-## 0.2 — Latent contexts and change points
+## 0.2 — Latent contexts and change points — complete
 
-- Exact small-state HMM/switching model.
-- Separate context-posterior update from transition-parameter learning.
-- Full Bayesian online change-point baseline with run-length hypotheses.
-- Recovery tests for context switch versus structural reset.
+- Exact HMM filtering over a finite bank of fixed transition contexts.
+- Joint previous/current-context posterior and posterior switch probability.
+- Explicit separation of context inference from supervised Dirichlet learning.
+- Full categorical Bayesian online change-point detection with unpruned
+  run-length hypotheses and complete transition sufficient statistics.
+- Exhaustive-enumeration verification of the BOCPD posterior.
+- Prequential model-evidence recovery of known context switches versus novel
+  structural resets.
+- Configurable novel-regime similarity for identifiability stress tests.
 
-## 0.3 — Partial observations and sensor fusion
+Acceptance evidence for the default seed-7 benchmark:
+
+- 48 known-context-switch sequences and 48 structural-reset sequences;
+- balanced model-class recovery accuracy: 1.000;
+- median context-minus-change-point log-evidence margin: +12.387 for known
+  switches and -206.679 for structural resets.
+
+These are controlled synthetic recovery results, not biological evidence about
+ACh coding.
+
+## 0.3 — Partial observations and sensor fusion — next
 
 - State-space observation model for visual, vestibular, proprioceptive, and cue
   channels.
 - Modality-reliability inference.
 - Robust sensor-corruption alternatives.
-- Dissociation of observation innovation from transition-model change.
+- Dissociation of observation innovation from state mislocalization, context
+  change, and transition-model change.
+- Simulation-based recovery across sensory conflict and reliability levels.
 
 ## 0.4 — ACh measurement model
 
