@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
-from typing import Any, Final, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Final
 
 import numpy as np
 from numpy.typing import NDArray
