@@ -10,6 +10,10 @@ from typing import Any
 
 import numpy as np
 
+from bayesian_ach.attribution import (
+    ObservationAttributionConfig,
+    run_observation_attribution,
+)
 from bayesian_ach.io import write_json, write_rows_csv
 from bayesian_ach.model_recovery import fit_candidate_models, generate_synthetic_ach
 from bayesian_ach.regime import RegimeRecoveryConfig, run_regime_recovery
@@ -65,6 +69,25 @@ def _parser() -> argparse.ArgumentParser:
     regime.add_argument("--context-switch-probability", type=float, default=0.02)
     regime.add_argument("--change-hazard", type=float, default=0.02)
     regime.add_argument("--seed", type=int, default=7)
+
+    observation = subparsers.add_parser(
+        "observation-benchmark",
+        help="attribute partial observations to sensor or world changes",
+    )
+    observation.add_argument("--output", type=Path, required=True)
+    observation.add_argument("--sequences-per-class", type=int, default=36)
+    observation.add_argument("--pre-length", type=int, default=24)
+    observation.add_argument("--post-length", type=int, default=40)
+    observation.add_argument("--states", type=int, default=4)
+    observation.add_argument("--visual-accuracy", type=float, default=0.90)
+    observation.add_argument("--proprioceptive-accuracy", type=float, default=0.78)
+    observation.add_argument("--cue-accuracy", type=float, default=0.80)
+    observation.add_argument("--fault-accuracy", type=float, default=0.90)
+    observation.add_argument("--fault-similarity", type=float, default=0.0)
+    observation.add_argument("--structural-similarity", type=float, default=0.0)
+    observation.add_argument("--mechanism-switch-probability", type=float, default=0.03)
+    observation.add_argument("--fault-recovery-probability", type=float, default=0.01)
+    observation.add_argument("--seed", type=int, default=7)
 
     return parser
 
@@ -201,6 +224,37 @@ def _run_regime_benchmark(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_observation_benchmark(args: argparse.Namespace) -> int:
+    config = ObservationAttributionConfig(
+        n_sequences_per_class=args.sequences_per_class,
+        pre_length=args.pre_length,
+        post_length=args.post_length,
+        n_states=args.states,
+        visual_accuracy=args.visual_accuracy,
+        proprioceptive_accuracy=args.proprioceptive_accuracy,
+        cue_accuracy=args.cue_accuracy,
+        fault_accuracy=args.fault_accuracy,
+        fault_similarity=args.fault_similarity,
+        structural_similarity=args.structural_similarity,
+        mechanism_switch_probability=args.mechanism_switch_probability,
+        fault_recovery_probability=args.fault_recovery_probability,
+        seed=args.seed,
+    )
+    result = run_observation_attribution(config)
+    args.output.mkdir(parents=True, exist_ok=True)
+    write_rows_csv(
+        args.output / "observation_sequences.csv",
+        [sequence.as_dict() for sequence in result.sequences],
+    )
+    write_rows_csv(args.output / "observation_trials.csv", result.trials)
+    write_json(args.output / "summary.json", result.summary)
+    print(
+        f"Wrote partial-observation attribution evidence to {args.output}; "
+        f"balanced accuracy {result.summary['balanced_accuracy']:.3f}"
+    )
+    return 0
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     if args.command == "dissociate":
@@ -209,6 +263,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_benchmark(args)
     if args.command == "regime-benchmark":
         return _run_regime_benchmark(args)
+    if args.command == "observation-benchmark":
+        return _run_observation_benchmark(args)
     raise AssertionError(f"unhandled command {args.command!r}")
 
 

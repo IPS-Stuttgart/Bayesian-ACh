@@ -8,6 +8,7 @@ Create local evidence with:
 bayesian-ach dissociate --output results/dissociation
 bayesian-ach benchmark --output results/benchmark
 bayesian-ach regime-benchmark --output results/regime-recovery
+bayesian-ach observation-benchmark --output results/observation-attribution
 ```
 
 A result should be committed only when it is intentionally designated as a
