@@ -12,7 +12,7 @@ and asks a sharper estimation-theoretic question:
 > evidence that the world model itself should change—and can that event signal
 > still be identified after realistic release and measurement dynamics?
 
-Version 0.4 implements five computational layers:
+Version 0.5 implements six computational layers:
 
 1. conjugate Dirichlet learning for one transition model;
 2. exact HMM filtering over already learned transition contexts;
@@ -22,7 +22,10 @@ Version 0.4 implements five computational layers:
    sensor health;
 5. a calibration-separated ACh measurement model with phasic and tonic release,
    indicator convolution, nuisance regressors, subject effects, session
-   baselines, and held-out candidate comparison.
+   baselines, and held-out candidate comparison;
+6. causal closed-loop triggering with explicit transport delay, randomized
+   latency, local eligibility traces, yoked sham controls, and held-out recovery
+   of the causal stimulation window.
 
 This repository is a computational hypothesis-testing project. It does **not**
 claim that any candidate has already been established as the biological ACh
@@ -129,6 +132,25 @@ The sensor and tonic timescales are inferred from a known calibration input in
 training sessions only. Candidate coefficients are fitted on training task
 samples, and the final comparison uses held-out task samples only.
 
+### A stimulation main effect is not eligibility gating
+
+For effective event-to-perturbation lag \(\ell_i\), the closed-loop model tests
+
+\[
+D_i
+=
+Y_i^{\mathrm{active}}-Y_i^{\mathrm{sham}}
+=
+\beta_0+\beta_E A_i E(\ell_i;\theta)+\epsilon_i.
+\]
+
+The null, latency-independent, and latency-dependent models are compared on
+held-out sessions. Eligibility gating is claimed only when a causal timing
+interaction clears a preregistered log-evidence threshold over the selected
+simpler model. Event, command, and effective timestamps are separate, and the
+command-to-effective delay is treated as independently calibrated rather than
+silently absorbed into the inferred trace.
+
 ## Installation
 
 ```bash
@@ -200,6 +222,35 @@ For the default seed-7 benchmark:
 
 These are controlled synthetic model-recovery results, not biological evidence.
 
+### Closed-loop eligibility-window recovery
+
+```bash
+bayesian-ach closed-loop-benchmark \
+  --output results/closed-loop-recovery \
+  --seed 7
+```
+
+The default benchmark compares five causal generators: no effect, an untimed
+main effect, exponential eligibility, rise-and-decay eligibility, and a finite
+boxcar window. It uses balanced randomized latencies, uncertainty gating,
+refractory suppression, missed and background commands, explicit actuation
+delay, and yoked active/sham command times.
+
+For the default seed-7 benchmark:
+
+- all 5/5 causal generators are recovered;
+- 2,236 active/sham pairs are accepted, including 29 false-positive or
+  randomized background events;
+- the minimum conservative decision margin is 3.474 log units beyond the
+  preregistered claim boundary;
+- the median decision margin is 376.937 log units;
+- active and sham command timestamps agree exactly;
+- a 30-seed stress check recovers all 150 generator instances.
+
+The benchmark writes generator summaries, all candidate fits, pair-level
+outcomes, opportunity-level trigger decisions, and a provenance-rich JSON
+summary. These remain controlled synthetic recovery results.
+
 ## Python example
 
 ```python
@@ -253,21 +304,24 @@ whether the discrete timescale posterior is concentrated and stable.
 - **Stage 4 — complete:** calibration-only sensor and tonic-timescale inference,
   phasic/tonic forward measurement modeling, nuisance and subject separation,
   and seven-way held-out event-signal recovery.
-- **Stage 5 — next:** delayed closed-loop perturbation and eligibility-trace
-  tests.
-- **Stage 6:** replay as smoothing-based revision rather than unconstrained
-  internally generated prediction error.
+- **Stage 5 — complete:** causal online triggering, independently calibrated
+  delay, randomized timing, yoked active/sham perturbation, eligibility-family
+  recovery, and falsification against null and latency-independent effects.
+- **Stage 6 — next:** replay as smoothing-based revision rather than
+  unconstrained internally generated prediction error.
 
-See [`docs/measurement_model.md`](docs/measurement_model.md) for the ACh
-measurement derivation, [`docs/partial_observation.md`](docs/partial_observation.md)
-for multisensory inference, [`docs/switching_model.md`](docs/switching_model.md)
-for context and change-point inference, and [`docs/model.md`](docs/model.md) for
-the original transition signals.
+See [`docs/closed_loop.md`](docs/closed_loop.md) for causal triggering and
+eligibility-window recovery, [`docs/measurement_model.md`](docs/measurement_model.md)
+for the ACh measurement derivation,
+[`docs/partial_observation.md`](docs/partial_observation.md) for multisensory
+inference, [`docs/switching_model.md`](docs/switching_model.md) for context and
+change-point inference, and [`docs/model.md`](docs/model.md) for the original
+transition signals.
 
 ## Repository layout
 
 ```text
-src/bayesian_ach/       exact models, simulations, measurement model, CLI
+src/bayesian_ach/       exact models, measurement and closed-loop benchmarks, CLI
 tests/                  unit, exhaustive-enumeration, leakage, and recovery tests
 docs/                   derivations, experiment design, data contract, roadmap
 examples/               reproducible plotting examples

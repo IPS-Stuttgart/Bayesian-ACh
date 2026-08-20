@@ -8,6 +8,28 @@ from bayesian_ach.attribution import (
     run_observation_attribution,
 )
 from bayesian_ach.changepoint import ChangePointStep, DirichletBOCPD
+from bayesian_ach.closed_loop import (
+    CausalTriggerPolicy,
+    ClosedLoopDataset,
+    ClosedLoopFitConfig,
+    ClosedLoopModelFit,
+    ClosedLoopModelSpec,
+    ClosedLoopRecoveryResult,
+    EligibilityKernelSpec,
+    TriggerDecision,
+    TriggerPolicyConfig,
+    causal_window,
+    default_closed_loop_model_grid,
+    eligibility_kernel,
+    eligibility_weight,
+    fit_closed_loop_models,
+)
+from bayesian_ach.closed_loop_benchmark import (
+    ClosedLoopBenchmarkConfig,
+    ClosedLoopBenchmarkResult,
+    ClosedLoopGeneratorResult,
+    run_closed_loop_benchmark,
+)
 from bayesian_ach.dirichlet import DirichletTransitionModel
 from bayesian_ach.measurement import (
     CalibrationPosterior,
@@ -65,6 +87,16 @@ __all__ = [
     "CalibrationPosterior",
     "CandidateFit",
     "ChangePointStep",
+    "CausalTriggerPolicy",
+    "ClosedLoopBenchmarkConfig",
+    "ClosedLoopBenchmarkResult",
+    "ClosedLoopDataset",
+    "ClosedLoopFitConfig",
+    "ClosedLoopGeneratorResult",
+    "ClosedLoopModelFit",
+    "ClosedLoopModelSpec",
+    "ClosedLoopRecoveryResult",
+    "EligibilityKernelSpec",
     "ContextStep",
     "DirichletBOCPD",
     "DirichletTransitionModel",
@@ -88,16 +120,24 @@ __all__ = [
     "RegimeSequenceResult",
     "SwitchingContextFilter",
     "TransitionSignals",
+    "TriggerDecision",
+    "TriggerPolicyConfig",
     "compute_transition_signals",
+    "causal_window",
     "convolve_by_session",
+    "default_closed_loop_model_grid",
     "default_measurement_grid",
     "dirichlet_kl",
     "double_exponential_kernel",
+    "eligibility_kernel",
+    "eligibility_weight",
     "fit_candidate_models",
+    "fit_closed_loop_models",
     "fit_measurement_models",
     "generate_synthetic_ach",
     "ring_transition_kernels",
     "run_measurement_benchmark",
+    "run_closed_loop_benchmark",
     "run_observation_attribution",
     "run_regime_recovery",
     "simulate_factorial_design",
@@ -105,4 +145,4 @@ __all__ = [
     "tonic_sensor_ar_coefficients",
 ]
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"

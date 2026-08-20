@@ -14,6 +14,10 @@ from bayesian_ach.attribution import (
     ObservationAttributionConfig,
     run_observation_attribution,
 )
+from bayesian_ach.closed_loop_benchmark import (
+    ClosedLoopBenchmarkConfig,
+    run_closed_loop_benchmark,
+)
 from bayesian_ach.io import write_json, write_rows_csv
 from bayesian_ach.measurement_benchmark import (
     MeasurementBenchmarkConfig,
@@ -92,6 +96,20 @@ def _parser() -> argparse.ArgumentParser:
     observation.add_argument("--mechanism-switch-probability", type=float, default=0.03)
     observation.add_argument("--fault-recovery-probability", type=float, default=0.01)
     observation.add_argument("--seed", type=int, default=7)
+
+    closed_loop = subparsers.add_parser(
+        "closed-loop-benchmark",
+        help="recover delayed eligibility windows from active/sham perturbations",
+    )
+    closed_loop.add_argument("--output", type=Path, required=True)
+    closed_loop.add_argument("--subjects", type=int, default=8)
+    closed_loop.add_argument("--sessions-per-subject", type=int, default=5)
+    closed_loop.add_argument("--train-sessions-per-subject", type=int, default=3)
+    closed_loop.add_argument("--opportunities-per-session", type=int, default=96)
+    closed_loop.add_argument("--true-actuation-delay", type=float, default=0.08)
+    closed_loop.add_argument("--assumed-actuation-delay", type=float, default=0.08)
+    closed_loop.add_argument("--claim-log-evidence-threshold", type=float, default=5.0)
+    closed_loop.add_argument("--seed", type=int, default=7)
 
     measurement = subparsers.add_parser(
         "measurement-benchmark",
@@ -272,6 +290,35 @@ def _run_observation_benchmark(args: argparse.Namespace) -> int:
     return 0
 
 
+def _run_closed_loop_benchmark(args: argparse.Namespace) -> int:
+    config = ClosedLoopBenchmarkConfig(
+        n_subjects=args.subjects,
+        sessions_per_subject=args.sessions_per_subject,
+        train_sessions_per_subject=args.train_sessions_per_subject,
+        opportunities_per_session=args.opportunities_per_session,
+        true_actuation_delay=args.true_actuation_delay,
+        assumed_actuation_delay=args.assumed_actuation_delay,
+        claim_log_evidence_threshold=args.claim_log_evidence_threshold,
+        seed=args.seed,
+    )
+    result = run_closed_loop_benchmark(config)
+    args.output.mkdir(parents=True, exist_ok=True)
+    write_rows_csv(
+        args.output / "closed_loop_generators.csv",
+        [generator.as_dict() for generator in result.generators],
+    )
+    write_rows_csv(args.output / "closed_loop_fits.csv", result.fits)
+    write_rows_csv(args.output / "closed_loop_pairs.csv", result.pairs)
+    write_rows_csv(args.output / "closed_loop_opportunities.csv", result.opportunities)
+    write_json(args.output / "summary.json", result.summary)
+    print(
+        f"Wrote closed-loop eligibility evidence to {args.output}; "
+        f"recovered {result.summary['recovery_count']}/"
+        f"{result.summary['generator_count']} causal generators"
+    )
+    return 0
+
+
 def _run_measurement_benchmark(args: argparse.Namespace) -> int:
     config = MeasurementBenchmarkConfig(
         n_subjects=args.subjects,
@@ -313,6 +360,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _run_regime_benchmark(args)
     if args.command == "observation-benchmark":
         return _run_observation_benchmark(args)
+    if args.command == "closed-loop-benchmark":
+        return _run_closed_loop_benchmark(args)
     if args.command == "measurement-benchmark":
         return _run_measurement_benchmark(args)
     raise AssertionError(f"unhandled command {args.command!r}")
