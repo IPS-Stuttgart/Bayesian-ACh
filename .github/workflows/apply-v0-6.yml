@@ -1,0 +1,73 @@
+name: Apply Bayesian-ACh v0.6 replay milestone
+
+on:
+  push:
+    branches:
+      - agent/replay-smoothing-v0.6
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: ${{ !contains(github.event.head_commit.message, '[v0.6 applied]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: agent/replay-smoothing-v0.6
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.10"
+          cache: pip
+      - name: Reconstruct and verify milestone payload
+        run: |
+          cat .bootstrap_v0_6/chunks/part-* | base64 -d > /tmp/bayesian-ach-v0.6.tar.gz
+          echo "d7105c03d6265a80d89dc21c42d5fbec7eda56897fe4fc85b9edbe8b06831c28  /tmp/bayesian-ach-v0.6.tar.gz" | sha256sum -c -
+          tar -xzf /tmp/bayesian-ach-v0.6.tar.gz -C .bootstrap_v0_6
+      - name: Apply replay and smoothing milestone
+        run: python .bootstrap_v0_6/apply_v0_6.py --repo . --force
+      - name: Install development dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[dev]'
+      - name: Validate complete repository and default evidence
+        run: |
+          ruff check .
+          mypy src/bayesian_ach
+          pytest --cov=bayesian_ach --cov-report=term-missing
+          python -m build
+          bayesian-ach replay-benchmark --output /tmp/bayesian-ach-replay-default --seed 7
+      - name: Commit clean scientific change set
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm -r --cached --ignore-unmatch .bootstrap_v0_6
+          rm -rf .bootstrap_v0_6
+          git rm -- .github/workflows/apply-v0-6.yml
+          git rm --ignore-unmatch tests/test_replay_benchmark.py
+          git add -- \
+            .github/workflows/ci.yml \
+            CHANGELOG.md \
+            CITATION.cff \
+            README.md \
+            docs/replay_smoothing.md \
+            docs/roadmap.md \
+            examples/plot_replay_recovery.py \
+            pyproject.toml \
+            results/README.md \
+            src/bayesian_ach/__init__.py \
+            src/bayesian_ach/cli.py \
+            src/bayesian_ach/replay.py \
+            src/bayesian_ach/replay_benchmark.py \
+            tests/test_replay.py \
+            tests/test_replay_cli.py
+          if git diff --cached --name-only | grep -E '^\.bootstrap_v0_6|apply-v0-6\.yml$'; then
+            echo "Temporary bootstrap artifact remains staged" >&2
+            exit 1
+          fi
+          git commit \
+            -m "Add exact replay smoothing and no-double-counting recovery" \
+            -m "Introduce fixed-interval state/context/health smoothing, exact FFBS replay, retrospective transition-count revision, delayed-evidence signal recovery, no-double-counting diagnostics, version 0.6 documentation, tests, and CI evidence. [v0.6 applied]"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
