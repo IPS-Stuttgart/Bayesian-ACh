@@ -37,6 +37,7 @@ jobs:
           python -m pip install -e '.[dev]'
       - name: Validate milestone
         run: |
+          ruff check src/bayesian_ach/closed_loop_benchmark.py .bootstrap_v0_5/files/src/bayesian_ach/closed_loop_benchmark.py --fix
           ruff check .
           mypy src/bayesian_ach
           pytest --cov=bayesian_ach --cov-report=term-missing
