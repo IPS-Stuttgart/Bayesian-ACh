@@ -38,6 +38,7 @@ def _transition_prior(
         raise ValueError("n_actions must be positive")
 
     shape = (n_actions, n_states, n_states)
+    rows: NDArray[np.float64]
     if probabilities is None:
         rows = np.full(shape, 1.0 / n_states, dtype=float)
     else:
@@ -174,6 +175,7 @@ class DirichletBOCPD:
         self._validate_transition(state, action, next_state)
         prior_row = self.prior_alpha[action, state]
         reset_predictive = float(prior_row[next_state] / np.sum(prior_row))
+        posterior: NDArray[np.float64]
 
         if self.n_observations == 0:
             posterior = np.array([1.0], dtype=float)
