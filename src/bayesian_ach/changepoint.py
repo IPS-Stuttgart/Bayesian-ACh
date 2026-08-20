@@ -175,7 +175,7 @@ class DirichletBOCPD:
         self._validate_transition(state, action, next_state)
         prior_row = self.prior_alpha[action, state]
         reset_predictive = float(prior_row[next_state] / np.sum(prior_row))
-        posterior: NDArray[np.float64] = np.empty(
+        posterior = np.empty(
             self._run_length_probabilities.size + 1,
             dtype=float,
         )
