@@ -7,95 +7,87 @@ The project starts from the state-transition prediction-error hypothesis of
 [de Cothi, Shipley, and Barry (2026)](https://doi.org/10.1038/s41583-026-01058-w)
 and asks a sharper estimation-theoretic question:
 
-> Does ACh encode a raw sensory mismatch, a state-belief correction, a sensor
-> fault, retrieval of a latent context, or the Bayesian evidence that the world
-> model itself should change?
+> Does ACh encode a raw sensory mismatch, a rational parameter update, a
+> state-belief correction, a sensor fault, retrieval of a latent context, or
+> evidence that the world model itself should change—and can that event signal
+> still be identified after realistic release and measurement dynamics?
 
-Version 0.3 implements four exact finite-state inference layers:
+Version 0.4 implements five computational layers:
 
 1. conjugate Dirichlet learning for one transition model;
-2. HMM filtering over a bank of already learned transition contexts;
-3. Bayesian online change-point detection over genuinely new fully observed
+2. exact HMM filtering over already learned transition contexts;
+3. exact categorical Bayesian online change-point detection for fully observed
    regimes;
-4. joint multisensory filtering over latent state, context, and binary sensor
-   health.
+4. exact joint multisensory filtering over latent state, context, and binary
+   sensor health;
+5. a calibration-separated ACh measurement model with phasic and tonic release,
+   indicator convolution, nuisance regressors, subject effects, session
+   baselines, and held-out candidate comparison.
 
-The original six scalar hypotheses remain available:
-
-1. raw innovation magnitude;
-2. predictive surprise;
-3. Bayesian gain;
-4. posterior-mean update magnitude;
-5. parameter information gain;
-6. local reset/change evidence.
-
-Versions 0.2 and 0.3 add context information gain, posterior context-switch
-probability, a full run-length posterior, sensor-health information gain,
-per-sensor fault-onset probability, and multisensory state/context conflict.
 This repository is a computational hypothesis-testing project. It does **not**
 claim that any candidate has already been established as the biological ACh
 signal.
 
 ## Core distinctions
 
-### Error is not update magnitude
+### Error is not rational update magnitude
 
-For a categorical transition row with
+For a categorical transition row,
 
 \[
-\boldsymbol\theta \sim \operatorname{Dir}(\boldsymbol\alpha),
+\boldsymbol\theta\sim\operatorname{Dir}(\boldsymbol\alpha),
 \qquad
 \widehat{\boldsymbol p}=\frac{\boldsymbol\alpha}{\alpha_0},
 \]
 
-and observed next state \(j\), define
+and observed next state \(j\), the raw innovation is
 
 \[
-\boldsymbol\nu = \boldsymbol e_j-\widehat{\boldsymbol p}.
+\boldsymbol\nu=\boldsymbol e_j-\widehat{\boldsymbol p}.
 \]
 
-The raw-error proposal is proportional to \(\lVert\boldsymbol\nu\rVert\). The
-exact posterior-mean change is instead
+The exact posterior-mean change is
 
 \[
 \Delta\widehat{\boldsymbol p}
-= \frac{1}{\alpha_0+1}\boldsymbol\nu.
+=
+\frac{1}{\alpha_0+1}\boldsymbol\nu.
 \]
 
-Thus the same prediction and observation can imply different rational updates
-when model confidence differs.
+The same prediction and observation can therefore produce the same mismatch and
+surprise but a very different rational update when confidence differs.
 
 ### Context inference is not parameter learning
 
-For known context \(m_t\), the switching filter computes
+For known context \(m_t\), the exact switching filter computes
 
 \[
 q_t^-(m)=\sum_{m'}q_{t-1}(m')\Pi_{m'm},
 \qquad
 q_t(m)\propto q_t^-(m)
-  p(x_{t+1}\mid x_t,u_t,m).
+ p(x_{t+1}\mid x_t,u_t,m).
 \]
 
 This can retrieve an already learned transition model without changing any
-transition parameter. `SwitchingContextFilter.observe(...)` therefore performs
-inference only by default. An exact Dirichlet update is applied only when an
-external context label is supplied explicitly through `learn_context`.
+transition parameter. `SwitchingContextFilter.observe(...)` performs inference
+only unless an external context label is explicitly supplied through
+`learn_context`.
 
-### Known switch is not structural reset
+### A known switch is not a structural reset
 
-`DirichletBOCPD` maintains the complete run-length posterior
+`DirichletBOCPD` maintains the full run-length posterior
 
 \[
 p(r_t\mid x_{0:t},u_{0:t-1})
 \]
 
-and complete Dirichlet sufficient statistics for every run-length hypothesis.
-It provides a full structural-change baseline rather than the one-step local
-reset score used in version 0.1.
+and complete Dirichlet sufficient statistics for each run-length hypothesis. It
+therefore separates retrieval of a stored context from evidence that a new
+piecewise-stationary regime began.
 
 ### Observation mismatch is not world change
 
-Version 0.3 retains the exact joint posterior
+The multisensory filter retains
 
 \[
 q_t(m,x,\boldsymbol h)
@@ -104,21 +96,38 @@ p(m_t=m,x_t=x,\boldsymbol h_t=\boldsymbol h
 \mid y_{0:t},u_{0:t-1}),
 \]
 
-where \(\boldsymbol h_t\) contains one binary health state per sensor. The joint
-prediction is
+where \(\boldsymbol h_t\) contains one binary health state per sensor. A
+conflicting visual observation can update state, context, or visual-health
+belief instead of automatically forcing transition learning.
+
+### A computational event is not the measured trace
+
+Version 0.4 models
 
 \[
-q_t^-(m,x,\boldsymbol h)
+z_t
 =
-\sum_{m',x',\boldsymbol h'}
-q_{t-1}(m',x',\boldsymbol h')
-\Pi_{m'm}P_m^u(x',x)Q(\boldsymbol h',\boldsymbol h).
+b_j
++
+(h*a_s c_k)_t
++
+\boldsymbol\beta^\top\boldsymbol q_t
++
+(h*u)_t,
 \]
 
-Health-, context-, and state-dependent sensor models then determine whether an
-unexpected observation should revise the state, context, or sensor-health
-belief. A conflicting visual observation can therefore be assigned to visual
-corruption without forcing a transition-model change.
+where
+
+- \(c_{k,t}\) is one candidate Bayesian event train;
+- \(a_s\) is a partially pooled subject-specific signal coefficient;
+- \(u_t=\rho u_{t-1}+\epsilon_t\) is latent tonic release;
+- \(h\) is a causal difference-of-exponentials indicator response;
+- \(\boldsymbol q_t\) contains movement and arousal nuisance regressors;
+- \(b_j\) is a baseline-only session offset.
+
+The sensor and tonic timescales are inferred from a known calibration input in
+training sessions only. Candidate coefficients are fitted on training task
+samples, and the final comparison uses held-out task samples only.
 
 ## Installation
 
@@ -130,14 +139,14 @@ Python 3.10 or newer is supported.
 
 ## Run the benchmarks
 
-Run the matched-confidence and six-signal benchmark:
+### Matched confidence and scalar-signal recovery
 
 ```bash
 bayesian-ach dissociate --output results/dissociation --seed 7
 bayesian-ach benchmark --output results/benchmark --seed 7
 ```
 
-Run known-context versus structural-reset recovery with fully observed states:
+### Known context versus structural reset
 
 ```bash
 bayesian-ach regime-benchmark \
@@ -145,7 +154,7 @@ bayesian-ach regime-benchmark \
   --seed 7
 ```
 
-Run the partial-observation causal-attribution benchmark:
+### Partial-observation causal attribution
 
 ```bash
 bayesian-ach observation-benchmark \
@@ -153,103 +162,116 @@ bayesian-ach observation-benchmark \
   --seed 7
 ```
 
-The observation benchmark compares three exact models receiving identical
-visual, proprioceptive, and context-cue observations:
+The default observation benchmark recovers all 108 sequences: 36 visual sensor
+faults, 36 known-context switches, and 36 specified structural changes.
 
-- a fixed world with latent visual-sensor health;
-- healthy sensors with a switch to a known transition context;
-- healthy sensors with a preregistered structural-transition alternative.
+### ACh measurement-model recovery
+
+```bash
+bayesian-ach measurement-benchmark \
+  --output results/measurement-recovery \
+  --seed 7
+```
+
+The measurement benchmark asks whether the generating computational event train
+can be recovered after phasic and tonic release, indicator smoothing, nuisance
+confounding, subject variation, session offsets, and held-out sessions.
 
 It writes:
 
-- `observation_trials.csv`: trial-wise state, context, health, conflict, and
-  model-class posteriors;
-- `observation_sequences.csv`: sequence-wise evidence, decisions, margins, and
-  state-decoding diagnostics;
-- `summary.json`: confusion matrix, balanced accuracy, and identifiability
-  measures.
+- `measurement_generators.csv`: one recovery summary per generating signal;
+- `measurement_fits.csv`: held-out scores for every generator/candidate pair;
+- `measurement_kernel_posterior.csv`: calibration-only posterior over rise,
+  decay, and tonic-persistence hypotheses;
+- `measurement_samples.csv`: candidate, nuisance, split, and synthetic trace
+  values;
+- `summary.json`: acceptance metrics and split provenance.
 
-The default seed-7 benchmark recovers all 108 sequences. Median winning evidence
-margins are 57.786 for visual faults, 77.689 for known context switches, and
-58.761 for structural transition changes. These are controlled synthetic
-model-recovery results, not biological evidence.
+For the default seed-7 benchmark:
 
-Use `--fault-similarity` and `--structural-similarity` to move the candidate
-mechanisms towards observational non-identifiability. The summary reports total
-variation separations and warnings instead of silently interpreting an
-unidentifiable configuration.
+- all 7/7 generating signals are recovered;
+- the median held-out evidence margin is 771.532 log units;
+- the minimum evidence margin is 421.096 log units;
+- the calibration MAP is exactly
+  \((\tau_r,\tau_d,\rho)=(0.4,1.6,0.97)\);
+- median nuisance-coefficient MAE is 0.00749;
+- median subject-signal correlation is 0.99769;
+- maximum absolute correlation between sensor-convolved candidates is 0.88880.
+
+These are controlled synthetic model-recovery results, not biological evidence.
 
 ## Python example
 
 ```python
 import numpy as np
 
-from bayesian_ach import MultisensoryContextFilter
-
-transition = np.array(
-    [
-        [[0.90, 0.10], [0.10, 0.90]],
-        [[0.20, 0.80], [0.80, 0.20]],
-    ]
-)
-state_sensor = np.array([[0.90, 0.10], [0.10, 0.90]])
-visual_models = np.stack((state_sensor, state_sensor[:, ::-1]))
-proprioceptive_models = np.stack((state_sensor, state_sensor))
-health_transition = np.array(
-    [
-        [[0.98, 0.02], [0.10, 0.90]],
-        [[1.00, 0.00], [1.00, 0.00]],
-    ]
+from bayesian_ach import (
+    MeasurementDataset,
+    MeasurementFitConfig,
+    fit_measurement_models,
 )
 
-filter_ = MultisensoryContextFilter(
-    transition_probabilities=transition,
-    context_transition=[[0.98, 0.02], [0.02, 0.98]],
-    emission_probabilities=(visual_models, proprioceptive_models),
-    sensor_health_transition=health_transition,
-    initial_context=[1.0, 0.0],
-    initial_sensor_health=[[1.0, 0.0], [1.0, 0.0]],
-)
-filter_.initialize((0, 0))
-step = filter_.step((1, 0))
+n = 400
+sessions = np.repeat(np.arange(4), n // 4)
+subjects = np.repeat([0, 0, 1, 1], n // 4)
+train = np.isin(sessions, [0, 2])
+calibration = np.tile(np.r_[np.ones(40, dtype=bool), np.zeros(60, dtype=bool)], 4)
+task = ~calibration
+baseline = np.tile(np.r_[np.ones(8, dtype=bool), np.zeros(92, dtype=bool)], 4)
 
-assert np.isclose(step.posterior_joint.sum(), 1.0)
-assert step.sensor_fault_probabilities.shape == (2,)
+rng = np.random.default_rng(7)
+dataset = MeasurementDataset(
+    observed=rng.normal(size=n),
+    calibration_event=np.zeros(n),
+    candidate_events=rng.normal(size=(n, 2)),
+    nuisance=rng.normal(size=(n, 1)),
+    subject_ids=subjects,
+    session_ids=sessions,
+    train_mask=train,
+    calibration_mask=calibration,
+    task_mask=task,
+    baseline_mask=baseline,
+    candidate_names=("surprise", "context_information_gain"),
+    nuisance_names=("movement",),
+)
+
+result = fit_measurement_models(dataset, MeasurementFitConfig(dt=0.2))
+print(result.winner.candidate)
 ```
+
+Real analyses should use a meaningful exogenous calibration event and inspect
+whether the discrete timescale posterior is concentrated and stable.
 
 ## Scientific programme
 
-The repository follows a staged programme:
-
-- **Stage 1 — complete:** exact finite-state transition learning, calibrated
-  scalar hypotheses, matched-confidence dissociation, and model recovery;
-- **Stage 2 — complete:** exact filtering over known contexts, explicit
-  separation of mode inference from parameter learning, full categorical
-  BOCPD, and context-switch-versus-reset recovery;
-- **Stage 3 — complete:** exact joint filtering of latent state, transition
-  context, and sensor health; context-dependent observation channels;
-  multisensory conflict diagnostics; and prequential recovery of sensor fault,
-  known context switch, and specified structural change;
-- **Stage 4 — next:** ACh observation dynamics, including phasic/tonic release,
-  indicator convolution, movement, arousal, and hierarchical session effects;
-- **Stage 5:** delayed closed-loop perturbation and eligibility-trace tests;
+- **Stage 1 — complete:** exact transition learning, matched-confidence
+  dissociation, and six-way scalar model recovery.
+- **Stage 2 — complete:** exact context filtering, supervised parameter learning,
+  full categorical BOCPD, and known-switch-versus-reset recovery.
+- **Stage 3 — complete:** exact partial-observation filtering over state, context,
+  and sensor health, with three-way sensor/world attribution.
+- **Stage 4 — complete:** calibration-only sensor and tonic-timescale inference,
+  phasic/tonic forward measurement modeling, nuisance and subject separation,
+  and seven-way held-out event-signal recovery.
+- **Stage 5 — next:** delayed closed-loop perturbation and eligibility-trace
+  tests.
 - **Stage 6:** replay as smoothing-based revision rather than unconstrained
   internally generated prediction error.
 
-See [`docs/partial_observation.md`](docs/partial_observation.md) for the new
-multisensory derivation, [`docs/switching_model.md`](docs/switching_model.md) for
-context and change-point inference, [`docs/experimental_design.md`](docs/experimental_design.md)
-for the proposed VR experiment, and [`docs/model.md`](docs/model.md) for the
-original transition signals.
+See [`docs/measurement_model.md`](docs/measurement_model.md) for the ACh
+measurement derivation, [`docs/partial_observation.md`](docs/partial_observation.md)
+for multisensory inference, [`docs/switching_model.md`](docs/switching_model.md)
+for context and change-point inference, and [`docs/model.md`](docs/model.md) for
+the original transition signals.
 
 ## Repository layout
 
 ```text
-src/bayesian_ach/       exact models, simulations, model recovery, CLI
-tests/                  unit, exhaustive-enumeration, and end-to-end tests
-docs/                   scientific model, experiment, data contract, roadmap
+src/bayesian_ach/       exact models, simulations, measurement model, CLI
+tests/                  unit, exhaustive-enumeration, leakage, and recovery tests
+docs/                   derivations, experiment design, data contract, roadmap
 examples/               reproducible plotting examples
-data/                    instructions for external datasets; no data vendored
+data/                    external-data instructions; no data vendored
 results/                 generated evidence; only documentation is tracked
 ```
 
@@ -262,7 +284,8 @@ pytest --cov=bayesian_ach --cov-report=term-missing
 python -m build
 ```
 
-GitHub Actions runs linting, typing, build checks, and tests on Python 3.10–3.13.
+GitHub Actions runs linting, typing, build checks, the complete test suite on
+Python 3.10–3.13, and smoke tests for all benchmark commands.
 
 ## Citation
 
