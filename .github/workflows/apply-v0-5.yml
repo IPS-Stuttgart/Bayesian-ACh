@@ -1,0 +1,66 @@
+name: Apply Bayesian-ACh v0.5 overlay
+
+on:
+  push:
+    branches:
+      - agent/closed-loop-eligibility-v0.5
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    if: ${{ !contains(github.event.head_commit.message, '[v0.5 applied]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: agent/closed-loop-eligibility-v0.5
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.10"
+          cache: pip
+      - name: Reconstruct and verify overlay
+        run: |
+          cat .bootstrap_v0_5/chunks/part-* | base64 -d > /tmp/bayesian-ach-v0.5.tar.gz
+          echo "bd0a6f54b92fe398f5241b2185358b40fc808068a559dc4f0a2e2607b7d26eda  /tmp/bayesian-ach-v0.5.tar.gz" | sha256sum -c -
+          tar -xzf /tmp/bayesian-ach-v0.5.tar.gz -C .bootstrap_v0_5
+      - name: Apply verified overlay
+        run: python .bootstrap_v0_5/apply_v0_5.py --repo . --force
+      - name: Install development dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[dev]'
+      - name: Validate milestone
+        run: |
+          ruff check .
+          mypy src/bayesian_ach
+          pytest --cov=bayesian_ach --cov-report=term-missing
+          python -m build
+      - name: Commit applied milestone
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -rf .bootstrap_v0_5 .github/workflows/apply-v0-5.yml
+          git add -- \
+            .github/workflows/ci.yml \
+            CHANGELOG.md \
+            CITATION.cff \
+            README.md \
+            docs/closed_loop.md \
+            docs/roadmap.md \
+            examples/plot_closed_loop_recovery.py \
+            pyproject.toml \
+            results/README.md \
+            src/bayesian_ach/__init__.py \
+            src/bayesian_ach/cli.py \
+            src/bayesian_ach/closed_loop.py \
+            src/bayesian_ach/closed_loop_benchmark.py \
+            tests/test_closed_loop.py \
+            tests/test_closed_loop_cli.py
+          git add -u -- .bootstrap_v0_5 .github/workflows/apply-v0-5.yml
+          git commit \
+            -m "Add delayed closed-loop eligibility recovery" \
+            -m "Introduce causal triggering, calibrated transport delay, yoked active/sham controls, held-out eligibility-family recovery, version 0.5 documentation, tests, and CI evidence. [v0.5 applied]"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
