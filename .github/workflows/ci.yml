@@ -53,6 +53,15 @@ jobs:
           --pre-length 8
           --post-length 12
           --seed 11
+      - run: >-
+          bayesian-ach measurement-benchmark
+          --output /tmp/bayesian-ach-measurement-smoke
+          --subjects 3
+          --sessions-per-subject 3
+          --train-sessions-per-subject 2
+          --calibration-length 40
+          --task-length 80
+          --seed 11
 
   build:
     runs-on: ubuntu-latest

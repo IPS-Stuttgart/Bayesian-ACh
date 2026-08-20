@@ -2,6 +2,24 @@
 
 All notable changes to Bayesian-ACh will be documented here.
 
+## 0.4.0 — 2026-08-20
+
+- Added a forward ACh measurement model with subject-specific phasic release,
+  latent AR(1) tonic release, and shared difference-of-exponentials indicator
+  dynamics.
+- Added exact conditional AR(3) whitening for filtered tonic-release residuals.
+- Added calibration-only inference over a discrete rise/decay/tonic-persistence
+  grid and held-out likelihood marginalization over that uncertainty.
+- Added movement, acceleration, pupil, theta, and engagement nuisance
+  regressors; partially pooled subject intercepts and signal slopes; and
+  baseline-only session-offset estimation.
+- Added seven candidate event trains generated from one exact multisensory
+  belief trajectory.
+- Added strict calibration/train/test leakage checks and seven-way synthetic
+  recovery of the generating Bayesian event signal.
+- Added `bayesian-ach measurement-benchmark`, CSV/JSON evidence exports,
+  scientific documentation, plotting support, tests, and CI smoke coverage.
+
 ## 0.3.0 — 2026-08-20
 
 - Added exact joint filtering over latent state, transition context, and binary
