@@ -1,5 +1,12 @@
 """Bayesian-ACh public API."""
 
+from bayesian_ach.attribution import (
+    MECHANISM_NAMES,
+    ObservationAttributionConfig,
+    ObservationAttributionResult,
+    ObservationSequenceResult,
+    run_observation_attribution,
+)
 from bayesian_ach.changepoint import ChangePointStep, DirichletBOCPD
 from bayesian_ach.dirichlet import DirichletTransitionModel
 from bayesian_ach.model_recovery import (
@@ -7,6 +14,7 @@ from bayesian_ach.model_recovery import (
     fit_candidate_models,
     generate_synthetic_ach,
 )
+from bayesian_ach.observation import MultisensoryContextFilter, MultisensoryStep
 from bayesian_ach.regime import (
     RegimeRecoveryConfig,
     RegimeRecoveryResult,
@@ -30,6 +38,7 @@ from bayesian_ach.switching import ContextStep, SwitchingContextFilter
 
 __all__ = [
     "CANDIDATE_SIGNAL_NAMES",
+    "MECHANISM_NAMES",
     "CandidateFit",
     "ChangePointStep",
     "ContextStep",
@@ -37,6 +46,11 @@ __all__ = [
     "DirichletTransitionModel",
     "FactorialDesignConfig",
     "MatchedConfidenceConfig",
+    "MultisensoryContextFilter",
+    "MultisensoryStep",
+    "ObservationAttributionConfig",
+    "ObservationAttributionResult",
+    "ObservationSequenceResult",
     "RegimeRecoveryConfig",
     "RegimeRecoveryResult",
     "RegimeSequenceResult",
@@ -47,9 +61,10 @@ __all__ = [
     "fit_candidate_models",
     "generate_synthetic_ach",
     "ring_transition_kernels",
+    "run_observation_attribution",
     "run_regime_recovery",
     "simulate_factorial_design",
     "simulate_matched_confidence",
 ]
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
