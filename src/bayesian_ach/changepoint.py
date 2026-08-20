@@ -203,7 +203,8 @@ class DirichletBOCPD:
             predictive_probability = float(np.sum(joint))
             if predictive_probability <= 0.0 or not np.isfinite(predictive_probability):
                 raise FloatingPointError("BOCPD predictive probability is invalid")
-            posterior = joint / predictive_probability
+            posterior = joint.copy()
+            posterior /= predictive_probability
 
             new_alpha = np.empty(
                 (self._alpha_hypotheses.shape[0] + 1,) + self.prior_alpha.shape,
