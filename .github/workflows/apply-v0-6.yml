@@ -38,6 +38,10 @@ jobs:
           python -m pip install -e '.[dev]'
       - name: Validate complete repository and default evidence
         run: |
+          ruff check --fix \
+            src/bayesian_ach/__init__.py \
+            src/bayesian_ach/cli.py \
+            src/bayesian_ach/smoothing.py
           ruff check .
           mypy src/bayesian_ach
           pytest --cov=bayesian_ach --cov-report=term-missing
@@ -65,6 +69,7 @@ jobs:
             src/bayesian_ach/cli.py \
             src/bayesian_ach/replay.py \
             src/bayesian_ach/replay_benchmark.py \
+            src/bayesian_ach/smoothing.py \
             tests/test_replay.py \
             tests/test_replay_cli.py
           if git diff --cached --name-only | grep -E '^\.bootstrap_v0_6|apply-v0-6\.yml$'; then
