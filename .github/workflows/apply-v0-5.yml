@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - agent/closed-loop-eligibility-v0.5
+  pull_request:
+    branches:
+      - main
 
 permissions:
   contents: write
