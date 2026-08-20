@@ -175,10 +175,13 @@ class DirichletBOCPD:
         self._validate_transition(state, action, next_state)
         prior_row = self.prior_alpha[action, state]
         reset_predictive = float(prior_row[next_state] / np.sum(prior_row))
-        posterior: NDArray[np.float64]
+        posterior: NDArray[np.float64] = np.empty(
+            self._run_length_probabilities.size + 1,
+            dtype=float,
+        )
 
         if self.n_observations == 0:
-            posterior = np.array([1.0], dtype=float)
+            posterior[0] = 1.0
             alpha = self.prior_alpha.copy()
             alpha[action, state, next_state] += 1.0
             self._alpha_hypotheses = alpha[None, ...]
@@ -193,18 +196,16 @@ class DirichletBOCPD:
                     (1.0 - self.hazard) * self._run_length_probabilities,
                 )
             )
-            joint = np.empty(self._run_length_probabilities.size + 1, dtype=float)
-            joint[0] = self.hazard * reset_predictive
-            joint[1:] = (
+            posterior[0] = self.hazard * reset_predictive
+            posterior[1:] = (
                 (1.0 - self.hazard)
                 * self._run_length_probabilities
                 * likelihoods
             )
-            predictive_probability = float(np.sum(joint))
+            predictive_probability = float(np.sum(posterior))
             if predictive_probability <= 0.0 or not np.isfinite(predictive_probability):
                 raise FloatingPointError("BOCPD predictive probability is invalid")
-            np.divide(joint, predictive_probability, out=joint)
-            posterior = joint
+            np.divide(posterior, predictive_probability, out=posterior)
 
             new_alpha = np.empty(
                 (self._alpha_hypotheses.shape[0] + 1,) + self.prior_alpha.shape,
