@@ -1,0 +1,26 @@
+name: Export source snapshot
+
+on:
+  push:
+    branches: [agent/paper-ready-v1]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - name: Create source archive
+        run: |
+          git archive --format=tar.gz --output=bayesian-ach-source.tar.gz HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bayesian-ach-source
+          path: bayesian-ach-source.tar.gz
+          if-no-files-found: error
+          retention-days: 1
