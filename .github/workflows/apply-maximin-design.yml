@@ -28,7 +28,33 @@ jobs:
           echo "bad8aca54294bf4a6d2457ace4a35cc7c1340c44624df5b64d1e41dc59d29e64  /tmp/bayesian-ach-maximin-design.tar.gz" | sha256sum -c -
           tar -xzf /tmp/bayesian-ach-maximin-design.tar.gz -C .bootstrap_design
       - name: Apply maximin experiment-design milestone
-        run: python .bootstrap_design/apply_design.py --repo .
+        run: |
+          python .bootstrap_design/apply_design.py --repo .
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("src/bayesian_ach/design_benchmark.py")
+          text = path.read_text(encoding="utf-8")
+          text = text.replace(
+              "for repetition in range(config.recovery_repetitions):",
+              "for _repetition in range(config.recovery_repetitions):",
+          )
+          text = text.replace(
+              "def run_design_benchmark(\n"
+              "    config: DesignBenchmarkConfig = DesignBenchmarkConfig(),\n"
+              ") -> DesignBenchmarkResult:\n"
+              "    \"\"\"Optimize a schedule and verify downstream candidate-code recovery.\"\"\"\n\n"
+              "    config.validate()",
+              "def run_design_benchmark(\n"
+              "    config: DesignBenchmarkConfig | None = None,\n"
+              ") -> DesignBenchmarkResult:\n"
+              "    \"\"\"Optimize a schedule and verify downstream candidate-code recovery.\"\"\"\n\n"
+              "    if config is None:\n"
+              "        config = DesignBenchmarkConfig()\n"
+              "    config.validate()",
+          )
+          path.write_text(text, encoding="utf-8")
+          PY
       - name: Install development dependencies
         run: |
           python -m pip install --upgrade pip
