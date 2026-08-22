@@ -3,6 +3,8 @@ name: Export optimal-design source
 on:
   push:
     branches: [agent/optimal-experimental-design]
+  pull_request:
+    branches: [main]
 
 permissions:
   contents: read
