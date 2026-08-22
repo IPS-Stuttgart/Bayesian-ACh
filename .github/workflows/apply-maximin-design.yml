@@ -107,8 +107,8 @@ jobs:
             tests/test_design_benchmark.py \
             tests/test_design_cli.py \
             tests/test_replay_cli.py
-          if git diff --cached --name-only | grep -E '^\.bootstrap_design|apply-maximin-design\.yml$'; then
-            echo "Bootstrap artifact remains staged" >&2
+          if git diff --cached --name-status --diff-filter=ACMR | grep -E '\.bootstrap_design|apply-maximin-design\.yml$'; then
+            echo "Bootstrap artifact would remain in the clean tree" >&2
             exit 1
           fi
           git commit \
