@@ -1,1 +1,1 @@
-trigger maximin applicator
+trigger maximin applicator after workflow installation
