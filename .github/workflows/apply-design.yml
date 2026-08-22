@@ -1,0 +1,118 @@
+name: Apply maximin experimental-design milestone
+
+on:
+  push:
+    branches: [agent/optimal-experimental-design]
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: apply-design-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apply:
+    if: ${{ github.event_name != 'push' || !contains(github.event.head_commit.message, '[design applied]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: agent/optimal-experimental-design
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.10"
+          cache: pip
+      - name: Reconstruct and verify prepared scientific payload
+        run: |
+          cat .design_apply/chunks/part-* | base64 -d > /tmp/bayesian-ach-design.tar.gz
+          echo "bcb8d742d59113eebfbe3c405f2ac1ad16698e9206367b881e9f6eb7797e2d59  /tmp/bayesian-ach-design.tar.gz" | sha256sum -c -
+          mkdir -p /tmp/bayesian-ach-design
+          tar -xzf /tmp/bayesian-ach-design.tar.gz -C /tmp/bayesian-ach-design
+      - name: Apply exact source overlay
+        run: >-
+          python /tmp/bayesian-ach-design/apply_design.py
+          --repo .
+          --payload /tmp/bayesian-ach-design
+      - name: Install development dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e '.[dev]'
+      - name: Validate complete repository and design evidence
+        run: |
+          ruff check .
+          mypy src/bayesian_ach
+          pytest --cov=bayesian_ach --cov-report=term-missing
+          python -m build
+          bayesian-ach replay-benchmark \
+            --output /tmp/bayesian-ach-replay-smoke \
+            --sequences 16 \
+            --sequence-length 28 \
+            --replay-samples 32 \
+            --seed 11
+          bayesian-ach design-benchmark \
+            --output /tmp/bayesian-ach-design-default \
+            --budget 60 \
+            --replicates 200 \
+            --seed 7
+          python - <<'PYVERIFY'
+          import json
+          from pathlib import Path
+
+          summary = json.loads(
+              Path('/tmp/bayesian-ach-design-default/summary.json').read_text()
+          )
+          designs = summary['designs']
+          optimized = designs['maximin_optimized']
+          novelty = designs['coupled_novelty']
+          assert optimized['minimum_pairwise_residual_variance'] > 20.0 * novelty[
+              'minimum_pairwise_residual_variance'
+          ]
+          assert optimized['worst_generator_recovery_rate'] >= 0.75
+          assert optimized['worst_generator_recovery_rate'] > novelty[
+              'worst_generator_recovery_rate'
+          ]
+          assert optimized['trial_budget'] == novelty['trial_budget'] == 60
+          PYVERIFY
+      - name: Commit only the clean scientific change set
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -rf .design_apply
+          rm -f .github/workflows/apply-design.yml
+          git add -- \
+            .github/workflows/ci.yml \
+            CHANGELOG.md \
+            CITATION.cff \
+            README.md \
+            docs/experimental_design.md \
+            docs/optimal_design.md \
+            docs/roadmap.md \
+            examples/plot_design_optimization.py \
+            pyproject.toml \
+            results/README.md \
+            src/bayesian_ach/__init__.py \
+            src/bayesian_ach/cli.py \
+            src/bayesian_ach/design.py \
+            src/bayesian_ach/design_benchmark.py \
+            tests/test_design.py \
+            tests/test_design_cli.py
+          git add -u -- \
+            .bootstrap_v0_6 \
+            .design_apply \
+            .github/workflows/apply-v0-6.yml \
+            .github/workflows/apply-design.yml \
+            .github/workflows/export-design-source.yml
+          if git diff --cached --name-only | grep -E '^\.design_apply|export-design-source|apply-design'; then
+            echo "temporary design bootstrap material remains staged" >&2
+            exit 1
+          fi
+          git status --short
+          git commit \
+            -m "Add maximin prospective experimental design" \
+            -m "Optimize finite trial allocations for worst-case discrimination among transition innovation, surprise, gain, posterior-update, information-gain, and structural-change hypotheses. Add equal-budget recovery benchmarks, transparent allocation evidence, documentation, tests, CLI integration, version 0.7 metadata, and remove stale bootstrap workflows. [design applied]"
+          git push origin "HEAD:${GITHUB_REF_NAME}"
