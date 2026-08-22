@@ -70,6 +70,19 @@ jobs:
           --train-sessions-per-subject 2
           --opportunities-per-session 72
           --seed 11
+      - run: >-
+          bayesian-ach replay-benchmark
+          --output /tmp/bayesian-ach-replay-smoke
+          --sequences 16
+          --sequence-length 28
+          --replay-samples 32
+          --seed 11
+      - run: >-
+          bayesian-ach-design
+          --output /tmp/bayesian-ach-design-smoke
+          --budget 24
+          --replicates 12
+          --seed 11
 
   build:
     runs-on: ubuntu-latest
