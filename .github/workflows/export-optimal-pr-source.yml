@@ -1,0 +1,20 @@
+name: Export optimal-design PR source
+
+on:
+  push:
+    branches: [agent/optimal-experimental-design]
+
+permissions:
+  contents: read
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - run: git archive --format=tar.gz --output=optimal-design-pr-source.tar.gz HEAD
+      - uses: actions/upload-artifact@v4
+        with:
+          name: optimal-design-pr-source
+          path: optimal-design-pr-source.tar.gz
+          retention-days: 1
