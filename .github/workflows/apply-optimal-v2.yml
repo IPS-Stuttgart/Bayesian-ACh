@@ -26,7 +26,7 @@ jobs:
       - name: Reconstruct and verify the prepared overlay
         run: |
           cat .bootstrap_optimal_v2/chunks/part-* | base64 -d > /tmp/optimal-v2.tar.gz
-          echo "9eacb1f4dde350e98daef7c6673c98969c8216219f177c5786804fc69421be44  /tmp/optimal-v2.tar.gz" | sha256sum -c -
+          echo "06422dcb4679f6002b63f3f4ca640da3c4a4f842333856620d746ec16c51be77  /tmp/optimal-v2.tar.gz" | sha256sum -c -
           tar -xzf /tmp/optimal-v2.tar.gz -C .
       - name: Install development dependencies
         run: |
