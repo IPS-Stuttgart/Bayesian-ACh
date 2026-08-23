@@ -50,15 +50,13 @@ jobs:
             --output /tmp/bayesian-ach-optimal-design \
             --quick \
             --seed 11
-      - name: Commit only the cleaned scientific change set
+      - name: Commit the scientific files without workflow changes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -- .github/workflows/ci.yml
           git rm -r -- .bootstrap_optimal_v2
-          git rm -- .github/workflows/apply-optimal-v2.yml
-          git rm --ignore-unmatch .github/workflows/export-optimal-pr-source.yml
           git add -- \
-            .github/workflows/ci.yml \
             CHANGELOG.md \
             CITATION.cff \
             docs/bayesian_optimal_design.md \
@@ -68,11 +66,11 @@ jobs:
             src/bayesian_ach/optimal_design_benchmark.py \
             tests/test_optimal_design.py \
             tests/test_optimal_design_cli.py
-          if git diff --cached --name-only | grep -E '^\.bootstrap_optimal_v2|apply-optimal-v2\.yml$|export-optimal-pr-source\.yml$'; then
-            echo "Temporary integration artifact remains staged" >&2
+          if git diff --cached --name-only | grep -E '^\.github/workflows/'; then
+            echo "A workflow change was accidentally staged" >&2
             exit 1
           fi
           git commit \
             -m "Add measurement-aware Bayesian optimal design" \
-            -m "Preserve the finite-grid v0.7 optimizer while adding nuisance-residualized, sensor-aware prior-predictive design, robust maximin scheduling, recovery and subject-count atlases, version 0.8 metadata, tests, and stable CI. [optimal-v2 applied]"
+            -m "Preserve the finite-grid v0.7 optimizer while adding nuisance-residualized, sensor-aware prior-predictive design, robust maximin scheduling, recovery and subject-count atlases, version 0.8 metadata, and tests. [optimal-v2 applied]"
           git push origin HEAD:agent/optimal-experimental-design
