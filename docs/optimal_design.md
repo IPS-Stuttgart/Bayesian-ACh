@@ -125,6 +125,45 @@ factorial value.
 These are controlled design-recovery results. They do not establish that the
 Gaussian response model or any candidate is biologically correct.
 
+## Quantitative trial guidance
+
+The geometry also converts a prespecified signal-to-noise ratio into a transparent
+first-order trial target. For desired expected log Bayes factor \(B\), the
+worst-pair approximation is
+
+\[
+N_{B}
+=
+\left\lceil
+\frac{2\sigma^2 B}
+     {a^2\min_{k\ne l}R_{k\mid l}(w)}
+\right\rceil.
+\]
+
+At unit standardized amplitude, unit noise, and \(B=5\), the default residuals
+correspond to approximately 40 trials for the maximin design, 88 for the seeded
+uniform factorial design, and 1,112 for the coupled-novelty design. These values
+are planning diagnostics, not retrospective power guarantees: serial dependence,
+subject variation, sensor convolution, missing trials, and model misspecification
+must be included in a study-specific simulation before animal numbers are fixed.
+
+## Scaling assumption and sensitivity requirement
+
+Global standardization gives each computational candidate one unit of variation
+over the declared feasible grid. This is an explicit equal-standardized-effect
+comparison; it does not assert that one physical unit of every candidate produces
+the same cholinergic amplitude. Before freezing a biological protocol, investigators
+should rerun the optimizer over a plausible set of candidate-specific amplitudes
+and noise levels, or optimize the minimum criterion jointly over that uncertainty
+set. A design whose advantage disappears under modest rescaling should not be
+presented as robust.
+
+Likewise, the current Gaussian criterion is local to a scalar linear readout.
+Photometry kinetics, nuisance regressors, subject-level random effects, and
+closed-loop timing can be incorporated by replacing the candidate matrix with
+the corresponding forward-model predictions while retaining the same auditable
+finite-allocation structure.
+
 ## Use
 
 ```bash
