@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import argparse
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Sequence
 
 from bayesian_ach.design_benchmark import DesignBenchmarkConfig, run_design_benchmark
 from bayesian_ach.io import write_json, write_rows_csv
