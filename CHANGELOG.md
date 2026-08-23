@@ -2,6 +2,30 @@
 
 All notable changes to Bayesian-ACh will be documented here.
 
+## 0.7.0 — 2026-08-23
+
+- Added a transparent finite-grid optimizer for prospective discrimination of
+  six transition-level ACh hypotheses.
+- Added a maximin objective equal to the smallest ordered-pair projection
+  residual, which is proportional to expected Gaussian held-out log-evidence.
+- Added deterministic greedy allocation, exchange refinement, a per-condition
+  trial cap, complete allocation traces, and pairwise geometry exports.
+- Added equal-budget coupled-novelty and uniform-factorial baselines.
+- Added held-out recovery showing that optimized 60-trial schedules improve
+  worst-generator recovery and reduce candidate collinearity.
+- Added `bayesian-ach-design`, public API, documentation, plotting,
+  tests, and CI smoke coverage.
+- Exposed the existing replay/smoothing benchmark through the public API and
+  command line, and removed temporary replay/applicator artifacts.
+
+## 0.6.0 — 2026-08-22
+
+- Added exact finite-state filtering-to-smoothing comparisons and posterior
+  pairwise transition revisions.
+- Added forward-filtering backward-sampling replay without model mutation.
+- Added held-out recovery of online surprise, smoothing information, and replay
+  content, plus a negative control for replay-as-independent-pseudodata.
+
 ## 0.5.0 — 2026-08-21
 
 - Added a stateful causal trigger policy with signal thresholding, uncertainty

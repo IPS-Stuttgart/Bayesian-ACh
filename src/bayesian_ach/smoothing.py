@@ -7,7 +7,6 @@ from dataclasses import dataclass
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
 
-
 _FLOAT_TINY = float(np.finfo(float).tiny)
 
 
