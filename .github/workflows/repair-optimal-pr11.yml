@@ -1,0 +1,173 @@
+name: Repair Bayesian optimal-design PR
+
+on:
+  push:
+    branches: [agent/optimal-experimental-design]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    if: ${{ !contains(github.event.head_commit.message, '[optimal-pr11 repaired]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: agent/optimal-experimental-design
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.10"
+          cache: pip
+      - name: Repair imports and stale compatibility test
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          module = Path("src/bayesian_ach/optimal_design.py")
+          text = module.read_text(encoding="utf-8")
+          old = "from typing import Final, Iterable, Mapping, Sequence\n"
+          new = (
+              "from collections.abc import Iterable, Mapping, Sequence\n"
+              "from typing import Final\n"
+          )
+          if old in text:
+              text = text.replace(old, new, 1)
+          module.write_text(text, encoding="utf-8")
+
+          Path("tests/test_optimal_design.py").write_text(
+              '''from __future__ import annotations
+
+import numpy as np
+
+from bayesian_ach.optimal_design import (
+    DesignConfig,
+    balanced_schedule,
+    condition_signals,
+    design_diagnostics,
+    evaluate_schedule,
+    fractional_factorial_conditions,
+    greedy_maximin_schedule,
+    matched_confidence_conditions,
+    min_pairwise_symmetric_kl,
+    novelty_only_conditions,
+    schedule_counts,
+)
+
+
+def test_matched_confidence_dissociates_gain_from_surprise() -> None:
+    common_low, common_high, rare_low, rare_high = matched_confidence_conditions()
+    common_low_signals = condition_signals(common_low)
+    common_high_signals = condition_signals(common_high)
+    rare_low_signals = condition_signals(rare_low)
+    rare_high_signals = condition_signals(rare_high)
+
+    assert common_low_signals["predictive_surprise"] == common_high_signals[
+        "predictive_surprise"
+    ]
+    assert rare_low_signals["predictive_surprise"] == rare_high_signals[
+        "predictive_surprise"
+    ]
+    assert common_low_signals["bayesian_gain"] > common_high_signals["bayesian_gain"]
+    assert rare_low_signals["rational_update"] > rare_high_signals["rational_update"]
+
+
+def test_fractional_factorial_restores_candidate_rank() -> None:
+    novelty = design_diagnostics(novelty_only_conditions())
+    factorial = design_diagnostics(fractional_factorial_conditions())
+
+    assert int(novelty["rank"]) < 6
+    assert int(factorial["rank"]) == 6
+    assert float(factorial["maximum_absolute_correlation"]) < 0.95
+
+
+def test_greedy_schedule_is_deterministic_and_respects_repeat_limit() -> None:
+    conditions = fractional_factorial_conditions()
+    first = greedy_maximin_schedule(
+        conditions,
+        12,
+        DesignConfig(),
+        max_repeats_per_condition=2,
+    )
+    second = greedy_maximin_schedule(
+        conditions,
+        12,
+        DesignConfig(),
+        max_repeats_per_condition=2,
+    )
+
+    assert first == second
+    assert len(first) == 12
+    assert max(schedule_counts(first).values()) <= 2
+
+
+def test_prior_predictive_factorial_design_improves_identifiability() -> None:
+    config = DesignConfig()
+    reference = fractional_factorial_conditions()
+    novelty = balanced_schedule(novelty_only_conditions(), 16)
+    factorial = balanced_schedule(reference, 16)
+
+    novelty_separation = min_pairwise_symmetric_kl(
+        novelty,
+        config,
+        reference_conditions=reference,
+    )
+    factorial_separation = min_pairwise_symmetric_kl(
+        factorial,
+        config,
+        reference_conditions=reference,
+    )
+    assert factorial_separation > novelty_separation
+    assert factorial_separation > 0.0
+
+    evaluation = evaluate_schedule(
+        "fractional_factorial",
+        factorial,
+        config,
+        reference_conditions=reference,
+        information_samples=48,
+        recovery_replicates=48,
+        seed=17,
+    )
+    assert np.isfinite(evaluation.expected_information_gain_nats)
+    assert evaluation.expected_information_gain_nats > 0.0
+    assert 0.0 <= evaluation.recovery_accuracy <= 1.0
+    assert np.isfinite(evaluation.mean_posterior_entropy_nats)
+''',
+              encoding="utf-8",
+          )
+          PY
+          rm -f \
+            .github/workflows/export-optimal-pr-source.yml \
+            .github/workflows/finalize-optimal-design.yml \
+            .github/workflows/optimize-design-runtime.yml \
+            docs/_tool_probe.txt
+      - name: Validate complete repository
+        run: |
+          python -m pip install --upgrade pip build
+          python -m pip install -e '.[dev]'
+          ruff check --fix .
+          ruff check .
+          mypy src/bayesian_ach
+          pytest --cov=bayesian_ach --cov-report=term-missing
+          python -m build
+          bayesian-ach dissociate --output /tmp/bayesian-ach-smoke --pairs 32 --seed 11
+          bayesian-ach regime-benchmark --output /tmp/bayesian-ach-regime-smoke --sequences-per-class 4 --pre-length 16 --post-length 24 --seed 11
+          bayesian-ach observation-benchmark --output /tmp/bayesian-ach-observation-smoke --sequences-per-class 3 --pre-length 8 --post-length 12 --seed 11
+          bayesian-ach measurement-benchmark --output /tmp/bayesian-ach-measurement-smoke --subjects 3 --sessions-per-subject 3 --train-sessions-per-subject 2 --calibration-length 40 --task-length 80 --seed 11
+          bayesian-ach closed-loop-benchmark --output /tmp/bayesian-ach-closed-loop-smoke --subjects 5 --sessions-per-subject 4 --train-sessions-per-subject 2 --opportunities-per-session 72 --seed 11
+          bayesian-ach replay-benchmark --output /tmp/bayesian-ach-replay-smoke --sequences 16 --sequence-length 28 --replay-samples 32 --seed 11
+          bayesian-ach-design --output /tmp/bayesian-ach-design-smoke --budget 24 --replicates 12 --seed 11
+      - name: Commit clean repair
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm -- .github/workflows/repair-optimal-pr11.yml
+          git add -A
+          if git diff --cached --name-only | grep -E '(^|/)(export-optimal-pr-source|finalize-optimal-design|optimize-design-runtime|repair-optimal-pr11)\.yml$|docs/_tool_probe\.txt$'; then
+            echo "Temporary integration artifact remains staged" >&2
+            exit 1
+          fi
+          git commit -m "Repair and validate Bayesian optimal-design extension" -m "Normalize imports, replace a stale legacy benchmark test with direct prior-predictive identifiability checks, remove temporary integration files, and pass the complete scientific quality gate. [optimal-pr11 repaired]"
+          git push origin HEAD:agent/optimal-experimental-design
