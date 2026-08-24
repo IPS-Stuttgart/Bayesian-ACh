@@ -34,7 +34,7 @@ D_{\mathrm{KL}}(q_t(m)\|q_t^-(m)) \\
 D_{\mathrm{KL}}(q_t(h)\|q_t^-(h)) \\
 P(m_t\ne m_{t-1}\mid y_{0:t}) \\
 P(h^{\mathrm{visual}}_{t-1}=0,h^{\mathrm{visual}}_t=1\mid y_{0:t}) \\
-\operatorname{JS}(q_t^{(1)}(x),\ldots,q_t^{(R)}(x))
+\mathrm{JS}(q_t^{(1)}(x),\ldots,q_t^{(R)}(x))
 \end{bmatrix}.
 $$
 
@@ -217,7 +217,7 @@ $$
 =
 \log p(z_{\mathrm{cal,train}}\mid\lambda_g)
 -
-\operatorname{logsumexp}_{g'}
+\mathrm{logsumexp}_{g'}
 \log p(z_{\mathrm{cal,train}}\mid\lambda_{g'}).
 $$
 
@@ -240,7 +240,7 @@ For candidate $k$, the final held-out score marginalizes the calibration grid,
 $$
 \log p(z_{\mathrm{test}}\mid k)
 =
-\operatorname{logsumexp}_g
+\mathrm{logsumexp}_g
 \left[
 \log w_g
 +
