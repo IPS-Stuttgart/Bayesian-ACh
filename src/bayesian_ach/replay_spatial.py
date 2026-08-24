@@ -9,7 +9,7 @@ import numpy as np
 from numpy.typing import ArrayLike, NDArray
 from scipy.special import logsumexp
 
-REPLAY_SPATIAL_SCHEMA_VERSION: Final[str] = "bayesian-ach.replay-spatial.v1"
+REPLAY_SPATIAL_SCHEMA_VERSION: Final[str] = "bayesian-ach.replay-spatial.v2"
 SPATIAL_CANDIDATE_NAMES: Final[tuple[str, ...]] = (
     "smoothing_revision",
     "online_surprise",
@@ -175,6 +175,7 @@ class SpatialReplayDataset:
     log_emission_offsets: NDArray[np.float64]
     time_mask: NDArray[np.bool_]
     active_spatial_mask: NDArray[np.bool_]
+    spatial_coordinates: NDArray[np.float64]
     nuisance_base: NDArray[np.float64]
     candidate_fields: NDArray[np.float64]
     candidate_available: NDArray[np.bool_]
@@ -277,6 +278,15 @@ class SpatialReplayDataset:
             )
         if np.any(spatial.sum(axis=1) < 2):
             raise ValueError("every event must contain at least two active spatial bins")
+        coordinates = np.asarray(self.spatial_coordinates, dtype=float)
+        if coordinates.shape != (n_events, emissions.shape[2], 2):
+            raise ValueError(
+                "spatial_coordinates must have shape (event, spatial_bin, xy)"
+            )
+        if not np.all(np.isfinite(coordinates[spatial])):
+            raise ValueError("active spatial coordinates must be finite")
+        if np.any(np.isfinite(coordinates[~spatial])):
+            raise ValueError("inactive spatial coordinates must be NaN")
         if np.any(np.isnan(emissions)) or np.any(emissions == np.inf):
             raise ValueError("log_emissions must not contain NaN or positive infinity")
         offsets = np.asarray(self.log_emission_offsets, dtype=float)
@@ -344,6 +354,7 @@ class SpatialComparisonConfig:
     minimum_rats: int = 3
     bootstrap_replicates: int = 5000
     maximum_field_correlation: float = 0.98
+    simultaneous_confidence_level: float = 0.95
     seed: int = 7
 
     def validate(self) -> None:
@@ -360,27 +371,66 @@ class SpatialComparisonConfig:
             raise ValueError("bootstrap_replicates must be at least 100")
         if not 0.0 < self.maximum_field_correlation <= 1.0:
             raise ValueError("maximum_field_correlation must lie in (0, 1]")
+        if not 0.5 < self.simultaneous_confidence_level < 1.0:
+            raise ValueError("simultaneous_confidence_level must lie in (0.5, 1)")
+
+
+@dataclass(frozen=True, slots=True)
+class SpatialRecoveryRecord:
+    """One computed emission-injection recovery result."""
+
+    generator: str
+    split_unit: str
+    selected_candidate: str
+    selected_margin: float
+    selected_margin_lower: float
+    decisive: bool
+    n_held_out_groups: int
 
 
 @dataclass(frozen=True, slots=True)
 class SpatialRecoveryGate:
-    """External recovery evidence required before a biological winner is named."""
+    """Computed recovery evidence required before a biological claim is made.
 
-    recovered_generators: tuple[str, ...]
-    failed_generators: tuple[str, ...] = ()
-    mixture_abstained: bool = False
-    leave_one_rat_out: bool = False
-    leave_one_session_out: bool = False
+    Records are produced by run_spatial_recovery_checks. There are no
+    user-asserted pass flags: every pure generator must be decisively recovered
+    under both held-out-animal and held-out-session calibration, while every
+    registered 50/50 mixture must trigger uncertainty abstention under both.
+    """
+
+    pure_records: tuple[SpatialRecoveryRecord, ...]
+    mixture_records: tuple[SpatialRecoveryRecord, ...]
+    required_mixtures: tuple[str, ...] = ("smoothing_revision+td_error",)
 
     @property
     def passed(self) -> bool:
-        return bool(
-            set(self.recovered_generators) == set(SPATIAL_CANDIDATE_NAMES)
-            and not self.failed_generators
-            and self.mixture_abstained
-            and self.leave_one_rat_out
-            and self.leave_one_session_out
-        )
+        required_splits = {"leave_one_rat_out", "leave_one_session_out"}
+        for generator in SPATIAL_CANDIDATE_NAMES:
+            matches = [
+                record
+                for record in self.pure_records
+                if record.generator == generator
+            ]
+            if (
+                {record.split_unit for record in matches} != required_splits
+                or any(
+                    record.selected_candidate != generator or not record.decisive
+                    for record in matches
+                )
+            ):
+                return False
+        for mixture in self.required_mixtures:
+            matches = [
+                record
+                for record in self.mixture_records
+                if record.generator == mixture
+            ]
+            if (
+                {record.split_unit for record in matches} != required_splits
+                or any(record.decisive for record in matches)
+            ):
+                return False
+        return True
 
 
 @dataclass(frozen=True, slots=True)
@@ -394,8 +444,23 @@ class SpatialCandidateFold:
 
 
 @dataclass(frozen=True, slots=True)
+class SpatialTargetContrast:
+    """Prespecified animal-level smoothing contrast with simultaneous coverage."""
+
+    alternative: str
+    mean_margin: float
+    simultaneous_lower_bound: float
+
+
+@dataclass(frozen=True, slots=True)
 class SpatialReplayComparison:
-    """Leave-one-rat-out comparison with an explicit abstention decision."""
+    """LORO comparison with confirmatory, prespecified smoothing contrasts.
+
+    winner and winner_margin_ci are descriptive because their identities are
+    selected on the same held-out scores. The status decision uses only the
+    prespecified smoothing-revision contrasts against every alternative and
+    their joint bootstrap lower bounds.
+    """
 
     candidate_names: tuple[str, ...]
     folds: tuple[SpatialCandidateFold, ...]
@@ -405,6 +470,9 @@ class SpatialReplayComparison:
     runner_up: str
     winner_margin: float
     winner_margin_ci: tuple[float, float]
+    target_candidate: str
+    target_contrasts: tuple[SpatialTargetContrast, ...]
+    simultaneous_confidence_level: float
     maximum_field_correlation: float
     common_event_count: int
     status: str
@@ -597,6 +665,11 @@ def compare_spatial_replay_candidates(
         retained_rats.append(held_out_rat)
         rat_score_rows.append(row)
 
+    target_candidate = "smoothing_revision"
+    target_index = all_names.index(target_candidate)
+    alternative_indices = [
+        index for index in range(len(all_names)) if index != target_index
+    ]
     if rat_score_rows:
         rat_scores = np.asarray(rat_score_rows, dtype=float)
         mean_scores = rat_scores.mean(axis=0)
@@ -608,18 +681,61 @@ def compare_spatial_replay_candidates(
         rat_differences = rat_scores[:, winner_index] - rat_scores[:, runner_index]
         winner_margin = float(np.mean(rat_differences))
         rng = np.random.default_rng(config.seed)
-        draws = rng.choice(
+        descriptive_draws = rng.choice(
             rat_differences,
             size=(config.bootstrap_replicates, len(rat_differences)),
             replace=True,
         ).mean(axis=1)
-        ci = tuple(float(value) for value in np.quantile(draws, [0.025, 0.975]))
+        tail = (1.0 - config.simultaneous_confidence_level) / 2.0
+        ci = tuple(
+            float(value)
+            for value in np.quantile(descriptive_draws, [tail, 1.0 - tail])
+        )
+
+        paired = (
+            rat_scores[:, [target_index]]
+            - rat_scores[:, alternative_indices]
+        )
+        observed_margins = paired.mean(axis=0)
+        bootstrap_indices = rng.integers(
+            0,
+            paired.shape[0],
+            size=(config.bootstrap_replicates, paired.shape[0]),
+        )
+        bootstrap_margins = paired[bootstrap_indices].mean(axis=1)
+        maximum_shortfall = np.max(
+            observed_margins[None, :] - bootstrap_margins,
+            axis=1,
+        )
+        critical_value = float(
+            np.quantile(
+                maximum_shortfall,
+                config.simultaneous_confidence_level,
+            )
+        )
+        simultaneous_lower = observed_margins - critical_value
+        target_contrasts = tuple(
+            SpatialTargetContrast(
+                alternative=all_names[alternative_index],
+                mean_margin=float(observed_margins[position]),
+                simultaneous_lower_bound=float(simultaneous_lower[position]),
+            )
+            for position, alternative_index in enumerate(alternative_indices)
+        )
     else:
         rat_scores = np.empty((0, len(all_names)), dtype=float)
         winner = NULL_CANDIDATE_NAME
         runner_up = dataset.candidate_names[0]
         winner_margin = float("nan")
         ci = (float("nan"), float("nan"))
+        target_contrasts = tuple(
+            SpatialTargetContrast(
+                alternative=all_names[index],
+                mean_margin=float("nan"),
+                simultaneous_lower_bound=float("nan"),
+            )
+            for index in alternative_indices
+        )
 
     maximum_correlation = (
         _field_correlation(standardized, common, dataset.active_spatial_mask)
@@ -635,8 +751,12 @@ def compare_spatial_replay_candidates(
         reasons.append("recovery_gate_failed")
     if maximum_correlation > config.maximum_field_correlation:
         reasons.append("candidate_fields_collinear")
-    if not np.isfinite(ci[0]) or ci[0] <= 0.0:
-        reasons.append("winner_margin_uncertain")
+    target_lower = np.asarray(
+        [contrast.simultaneous_lower_bound for contrast in target_contrasts],
+        dtype=float,
+    )
+    if np.any(~np.isfinite(target_lower)) or np.any(target_lower <= 0.0):
+        reasons.append("smoothing_revision_contrast_uncertain")
     status = "identified" if not reasons else "abstain"
 
     return SpatialReplayComparison(
@@ -648,6 +768,9 @@ def compare_spatial_replay_candidates(
         runner_up=runner_up,
         winner_margin=winner_margin,
         winner_margin_ci=ci,
+        target_candidate=target_candidate,
+        target_contrasts=target_contrasts,
+        simultaneous_confidence_level=config.simultaneous_confidence_level,
         maximum_field_correlation=maximum_correlation,
         common_event_count=int(np.sum(common)),
         status=status,
@@ -663,7 +786,9 @@ __all__ = [
     "SpatialCandidateFold",
     "SpatialComparisonConfig",
     "SpatialRecoveryGate",
+    "SpatialRecoveryRecord",
     "SpatialReplayComparison",
+    "SpatialTargetContrast",
     "SpatialReplayDataset",
     "build_signed_revision_field",
     "compare_spatial_replay_candidates",

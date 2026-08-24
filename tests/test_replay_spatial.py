@@ -13,10 +13,15 @@ from bayesian_ach.replay_artifact import (
     write_later_outcome_artifact,
     write_spatial_predictor_artifact,
 )
+from bayesian_ach.replay_recovery import (
+    SpatialInjectionRecoveryConfig,
+    run_spatial_recovery_checks,
+)
 from bayesian_ach.replay_spatial import (
     SPATIAL_CANDIDATE_NAMES,
     SpatialComparisonConfig,
     SpatialRecoveryGate,
+    SpatialRecoveryRecord,
     SpatialReplayDataset,
     build_signed_revision_field,
     compare_spatial_replay_candidates,
@@ -65,6 +70,8 @@ def _dataset(*, signal: bool = True, seed: int = 17) -> SpatialReplayDataset:
             log_emissions[event_index, time_index] = row
 
     well_mass = _softmax(rng.normal(size=(n_events, 3)))
+    grid_x, grid_y = np.meshgrid(np.arange(4, dtype=float), np.arange(3, dtype=float))
+    coordinates = np.column_stack((grid_x.ravel(), grid_y.ravel()))
     return SpatialReplayDataset(
         event_ids=tuple(f"event-{index:03d}" for index in range(n_events)),
         rat_ids=np.asarray(rats, dtype=str),
@@ -82,6 +89,10 @@ def _dataset(*, signal: bool = True, seed: int = 17) -> SpatialReplayDataset:
         log_emission_offsets=rng.normal(size=(n_events, n_time)),
         time_mask=np.ones((n_events, n_time), dtype=bool),
         active_spatial_mask=np.ones((n_events, n_bins), dtype=bool),
+        spatial_coordinates=np.broadcast_to(
+            coordinates[None, :, :],
+            (n_events, n_bins, 2),
+        ).copy(),
         nuisance_base=base,
         candidate_fields=fields,
         candidate_available=np.ones((n_events, n_candidates), dtype=bool),
@@ -91,12 +102,32 @@ def _dataset(*, signal: bool = True, seed: int = 17) -> SpatialReplayDataset:
 
 
 def _passing_gate() -> SpatialRecoveryGate:
-    return SpatialRecoveryGate(
-        recovered_generators=SPATIAL_CANDIDATE_NAMES,
-        mixture_abstained=True,
-        leave_one_rat_out=True,
-        leave_one_session_out=True,
+    pure = tuple(
+        SpatialRecoveryRecord(
+            generator=generator,
+            split_unit=split_unit,
+            selected_candidate=generator,
+            selected_margin=1.0,
+            selected_margin_lower=0.5,
+            decisive=True,
+            n_held_out_groups=4,
+        )
+        for generator in SPATIAL_CANDIDATE_NAMES
+        for split_unit in ("leave_one_rat_out", "leave_one_session_out")
     )
+    mixture = tuple(
+        SpatialRecoveryRecord(
+            generator="smoothing_revision+td_error",
+            split_unit=split_unit,
+            selected_candidate="smoothing_revision",
+            selected_margin=0.0,
+            selected_margin_lower=-0.1,
+            decisive=False,
+            n_held_out_groups=4,
+        )
+        for split_unit in ("leave_one_rat_out", "leave_one_session_out")
+    )
+    return SpatialRecoveryGate(pure_records=pure, mixture_records=mixture)
 
 
 def _config() -> SpatialComparisonConfig:
@@ -189,6 +220,11 @@ def test_loro_raw_emission_score_recovers_revision_only_with_gate() -> None:
     assert result.runner_up != result.winner
     assert result.winner_margin > 0.0
     assert result.winner_margin_ci[0] > 0.0
+    assert all(
+        contrast.simultaneous_lower_bound > 0.0
+        for contrast in result.target_contrasts
+    )
+    assert result.target_candidate == "smoothing_revision"
     assert result.status == "identified"
     assert result.rat_ids == ("Rat0", "Rat1", "Rat2", "Rat3")
     assert result.rat_scores.shape == (4, len(SPATIAL_CANDIDATE_NAMES) + 1)
@@ -239,8 +275,47 @@ def test_uninformative_emissions_force_uncertainty_abstention() -> None:
     )
 
     assert result.status == "abstain"
-    assert "winner_margin_uncertain" in result.abstention_reasons
+    assert "smoothing_revision_contrast_uncertain" in result.abstention_reasons
     assert result.winner_margin == pytest.approx(0.0, abs=1e-14)
+
+
+
+
+
+def test_recovery_is_computed_from_loao_and_loso_emission_injections() -> None:
+    dataset = _dataset(signal=False)
+    gate = run_spatial_recovery_checks(
+        dataset,
+        _config(),
+        SpatialInjectionRecoveryConfig(
+            injection_temperature=4.0,
+            spatial_sigma=0.2,
+            emission_noise_sd=0.0,
+            seed=29,
+        ),
+    )
+
+    assert len(gate.pure_records) == 2 * len(SPATIAL_CANDIDATE_NAMES)
+    assert {record.generator for record in gate.pure_records} == set(
+        SPATIAL_CANDIDATE_NAMES
+    )
+    assert {record.split_unit for record in gate.pure_records} == {
+        "leave_one_rat_out",
+        "leave_one_session_out",
+    }
+    assert {record.generator for record in gate.mixture_records} == {
+        "smoothing_revision+td_error"
+    }
+    assert all(record.n_held_out_groups >= 4 for record in gate.pure_records)
+    assert all(np.isfinite(record.selected_margin) for record in gate.pure_records)
+
+
+def test_spatial_coordinates_are_required_and_cannot_leak_off_support() -> None:
+    dataset = _dataset()
+    missing = np.asarray(dataset.spatial_coordinates).copy()
+    missing[0, 0] = np.nan
+    with pytest.raises(ValueError, match="active spatial coordinates"):
+        replace(dataset, spatial_coordinates=missing).validate()
 
 
 def test_predictor_and_later_outcome_artifacts_are_separate_and_hash_bound(
@@ -259,6 +334,10 @@ def test_predictor_and_later_outcome_artifacts_are_separate_and_hash_bound(
     assert loaded.predictor_sha256 == frozen.predictor_sha256
     assert loaded.dataset.event_ids == dataset.event_ids
     np.testing.assert_allclose(loaded.dataset.log_emissions, dataset.log_emissions)
+    np.testing.assert_allclose(
+        loaded.dataset.spatial_coordinates,
+        dataset.spatial_coordinates,
+    )
     np.testing.assert_allclose(loaded.dataset.well_masses, dataset.well_masses)
 
     outcomes = LaterOutcomeTable(

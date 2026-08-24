@@ -22,7 +22,7 @@ must therefore be regenerated; MAP-path scoring is not an acceptable substitute.
 
 ## Frozen latent variable and observation schedule
 
-Before a real-data run, version 1 fixes the behavioral construction as follows.
+Before a real-data run, version 2 fixes the behavioral construction as follows.
 
 - Latent state: the compact destination-well identity for a completed
   historical RUN traversal (at most the session's well library, not the full
@@ -61,8 +61,15 @@ decoder_training_cutoff_s[e] <= s_e
 history_cutoff_s[e] <= s_e
 field_available_s[e, candidate] <= s_e
 replay log emissions use only [s_e, f_e]
+place-field and decoder training observations end at decoder_training_cutoff_s[e]
 later outcome time > f_e
 ```
+
+The decoder must be refitted at each event cutoff (or use a demonstrably
+equivalent prefix cache). The existing producer's one-time, full-session RUN
+place-field fit violates this rule and cannot produce a claim-bearing artifact.
+A timestamp copied into the manifest is not sufficient: the fitted observations
+must actually end at that timestamp.
 
 The compact well state keeps Bayesian-ACh pair arrays small; the PF spatial
 grid is never passed through its dense pair-marginal implementation. Spatial
@@ -116,29 +123,48 @@ The frozen candidates are:
 ## Grouping and abstention
 
 Temperatures are selected without the held-out rat. Event scores are averaged
-within session and then equally across rats. The final uncertainty interval
-resamples rats, not events, time bins, or cells.
+within session and then equally across rats. The confirmatory target is fixed in
+advance as `smoothing_revision`; a candidate selected after viewing all
+held-out rats is reported only as a descriptive winner.
 
-The software computes scores even when it must abstain. It names an identified
-winner only if all of the following hold:
+For inference, the software forms paired rat-level contrasts between
+`smoothing_revision` and every finite alternative, including prospective,
+recency, posterior content, TD error, and null. A joint animal bootstrap uses
+the maximum shortfall over all contrasts to produce simultaneous one-sided
+lower bounds. Smoothing is identified only if every simultaneous lower bound is
+strictly positive. The descriptive winner-minus-runner interval never controls
+the claim.
+
+Recovery is executable rather than asserted. The recovery runner draws latent
+spatial bins from each frozen candidate prior, emits Gaussian raw spatial
+log-likelihood rows around those bins, and sends those rows through the full
+temperature-selection and scoring code. Every pure generator must be recovered
+with fixed-generator simultaneous contrasts under both leave-one-rat-out and
+leave-one-session-out calibration. A registered 50/50
+`smoothing_revision+td_error` injection must remain nondecisive. The persisted
+gate consists of the per-generator, per-split records; it has no manually set
+pass booleans.
+
+The software computes scores even when it must abstain. It reports
+`status="identified"` only if all of the following hold:
 
 - the common complete-case cohort spans at least three rats;
-- pure-candidate injection recovery succeeds under leave-one-rat-out and
-  leave-one-session-out validation;
-- a 50/50 mixture is correctly rejected or labeled ambiguous;
+- computed pure-candidate injection recovery succeeds under both split schemes;
+- the registered 50/50 mixture remains ambiguous;
 - candidate-field collinearity remains below the frozen threshold; and
-- the animal-bootstrap interval for winner minus runner-up excludes zero.
+- every prespecified smoothing contrast has a positive simultaneous lower bound.
 
 Failure of any gate yields `abstain`. It must not be rewritten as a biological
 null or as evidence for unconstrained prediction error.
 
 ## Artifact files
 
-Schema `bayesian-ach.replay-spatial.v1` writes:
+Schema `bayesian-ach.replay-spatial.v2` writes:
 
 - `replay_spatial_predictors.npz`: raw shifted log emissions, offsets, masks,
-  nuisance base, all pre-replay candidate fields, availability times, optional
-  posterior-derived well masses, and rat/session/event identifiers;
+  event-specific spatial coordinates, nuisance base, all pre-replay candidate
+  fields, availability times, optional posterior-derived well masses, and
+  rat/session/event identifiers;
 - `replay_spatial_manifest.json`: producer commit, locked-dataset digest,
   transition/trace convention, and the predictor SHA-256 digest.
 

@@ -49,6 +49,7 @@ class ReplaySpatialManifest:
     transition_convention: str = HIPPO_TRANSITION_CONVENTION
     candidate_evidence_cutoff: str = "strict_pre_replay"
     likelihood_domain: str = "max_shifted_log_emission_plus_offset"
+    decoder_training_schedule: str = "event_specific_prefix_refit"
     well_mass_source: str = "raw_log_emission_posterior"
     behavior_latent_state: str = "compact_destination_well"
     behavior_observation_schedule: str = "tracked_position_and_well_visits_pre_replay"
@@ -74,6 +75,8 @@ class ReplaySpatialManifest:
             raise ValueError("candidate evidence must be frozen strictly before replay")
         if self.likelihood_domain != "max_shifted_log_emission_plus_offset":
             raise ValueError("raw replay scores require shifted log emissions and offsets")
+        if self.decoder_training_schedule != "event_specific_prefix_refit":
+            raise ValueError("decoder training must use an event-specific prefix refit")
         if self.well_mass_source != "raw_log_emission_posterior":
             raise ValueError("well masses must be derived from the raw posterior")
         if self.behavior_latent_state != "compact_destination_well":
@@ -132,6 +135,7 @@ def write_spatial_predictor_artifact(
         log_emission_offsets=np.asarray(dataset.log_emission_offsets, dtype=float),
         time_mask=np.asarray(dataset.time_mask, dtype=bool),
         active_spatial_mask=np.asarray(dataset.active_spatial_mask, dtype=bool),
+        spatial_coordinates=np.asarray(dataset.spatial_coordinates, dtype=float),
         nuisance_base=np.asarray(dataset.nuisance_base, dtype=float),
         candidate_fields=np.asarray(dataset.candidate_fields, dtype=float),
         candidate_available=np.asarray(dataset.candidate_available, dtype=bool),
@@ -196,6 +200,10 @@ def load_spatial_predictor_artifact(
             active_spatial_mask=np.asarray(
                 arrays["active_spatial_mask"],
                 dtype=bool,
+            ),
+            spatial_coordinates=np.asarray(
+                arrays["spatial_coordinates"],
+                dtype=float,
             ),
             nuisance_base=np.asarray(arrays["nuisance_base"], dtype=float),
             candidate_fields=np.asarray(arrays["candidate_fields"], dtype=float),
