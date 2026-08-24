@@ -38,7 +38,7 @@ signal.
 For a categorical transition row,
 
 $$
-\boldsymbol\theta\sim\operatorname{Dir}(\boldsymbol\alpha),
+\boldsymbol\theta\sim\mathrm{Dir}(\boldsymbol\alpha),
 \qquad
 \widehat{\boldsymbol p}=\frac{\boldsymbol\alpha}{\alpha_0},
 $$
