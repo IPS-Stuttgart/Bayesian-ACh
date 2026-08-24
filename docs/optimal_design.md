@@ -39,40 +39,40 @@ condition outside this declared feasible set.
 
 ## Maximin objective
 
-Let \(x_k(d)\) be the globally standardized value of candidate \(k\) at design
-point \(d\), and let \(w_d\) be the fraction of trials allocated to that point.
-For an ordered generator/alternative pair \((k,l)\), regress \(x_k\) on an
-intercept and \(x_l\) under the design weights. The residual variance is
+Let $x_k(d)$ be the globally standardized value of candidate $k$ at design
+point $d$, and let $w_d$ be the fraction of trials allocated to that point.
+For an ordered generator/alternative pair $(k,l)$, regress $x_k$ on an
+intercept and $x_l$ under the design weights. The residual variance is
 
-\[
+$$
 R_{k\mid l}(w)
 =
 \operatorname{Var}_w(x_k)
 -
 \frac{\operatorname{Cov}_w(x_k,x_l)^2}
      {\operatorname{Var}_w(x_l)}.
-\]
+$$
 
 Under the Gaussian response model
 
-\[
+$$
 y=a x_k+\epsilon,
 \qquad
 \epsilon\sim\mathcal N(0,\sigma^2),
-\]
+$$
 
-the expected held-out log-evidence separation from candidate \(l\), per trial,
+the expected held-out log-evidence separation from candidate $l$, per trial,
 is
 
-\[
+$$
 \frac{a^2}{2\sigma^2}R_{k\mid l}(w).
-\]
+$$
 
 The primary design criterion is therefore
 
-\[
+$$
 \max_w\min_{k\ne l} R_{k\mid l}(w).
-\]
+$$
 
 This directly optimizes the worst candidate confusion rather than average
 variance or a global determinant that can hide one nearly indistinguishable
@@ -128,19 +128,19 @@ Gaussian response model or any candidate is biologically correct.
 ## Quantitative trial guidance
 
 The geometry also converts a prespecified signal-to-noise ratio into a transparent
-first-order trial target. For desired expected log Bayes factor \(B\), the
+first-order trial target. For desired expected log Bayes factor $B$, the
 worst-pair approximation is
 
-\[
+$$
 N_{B}
 =
 \left\lceil
 \frac{2\sigma^2 B}
      {a^2\min_{k\ne l}R_{k\mid l}(w)}
 \right\rceil.
-\]
+$$
 
-At unit standardized amplitude, unit noise, and \(B=5\), the default residuals
+At unit standardized amplitude, unit noise, and $B=5$, the default residuals
 correspond to approximately 40 trials for the maximin design, 88 for the seeded
 uniform factorial design, and 1,112 for the coupled-novelty design. These values
 are planning diagnostics, not retrospective power guarantees: serial dependence,
