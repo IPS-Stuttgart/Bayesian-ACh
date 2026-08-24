@@ -5,7 +5,7 @@
 For current state $i$, action $u$, and categorical next state $j$, let
 
 $$
-\boldsymbol\theta_{iu} \sim \operatorname{Dir}(\boldsymbol\alpha_{iu}).
+\boldsymbol\theta_{iu} \sim \mathrm{Dir}(\boldsymbol\alpha_{iu}).
 $$
 
 The posterior predictive distribution is
@@ -79,9 +79,9 @@ rational structural update, while local eligibility traces retain its direction.
 $$
 s_{\mathrm{IG}}
 =D_{\mathrm{KL}}\!\left[
-\operatorname{Dir}(\boldsymbol\alpha+\boldsymbol e_j)
+\mathrm{Dir}(\boldsymbol\alpha+\boldsymbol e_j)
 \,\|\,
-\operatorname{Dir}(\boldsymbol\alpha)
+\mathrm{Dir}(\boldsymbol\alpha)
 \right].
 $$
 
