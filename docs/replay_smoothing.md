@@ -15,32 +15,32 @@ posterior and carries no additional evidence by itself.
 
 ## Finite-state model
 
-For latent state $x_t\in\{1,\ldots,K\}$, define
+For latent state $`x_t\in\{1,\ldots,K\}`$, define
 
-$$
+```math
 \pi_i=p(x_0=i),
 \qquad
 P_t(i,j)=p(x_{t+1}=j\mid x_t=i),
 \qquad
 \ell_t(i)=p(y_t\mid x_t=i).
-$$
+```
 
 The implementation permits a different transition matrix at every step. A
 missing observation is represented by a likelihood row of ones. It therefore
 contributes predictive probability one and surprise zero; it is not incorrectly
-converted into a uniform categorical observation with surprise $\log K$.
+converted into a uniform categorical observation with surprise $`\log K`$.
 
 ## Online filter
 
 The one-step state prediction and normalized filtered posterior are
 
-$$
+```math
 \bar\alpha_t(j)
 =
 \sum_i \alpha_{t-1}(i)P_{t-1}(i,j),
-$$
+```
 
-$$
+```math
 c_t
 =
 \sum_j \bar\alpha_t(j)\ell_t(j),
@@ -48,90 +48,90 @@ c_t
 \alpha_t(j)
 =
 \frac{\bar\alpha_t(j)\ell_t(j)}{c_t}.
-$$
+```
 
-Here $c_t=p(y_t\mid y_{0:t-1})$, so the online predictive surprise is
+Here $`c_t=p(y_t\mid y_{0:t-1})`$, so the online predictive surprise is
 
-$$
+```math
 s_t^{\mathrm{online}}=-\log c_t.
-$$
+```
 
 The complete interval evidence is
 
-$$
+```math
 \log p(y_{0:T})=\sum_{t=0}^{T}\log c_t.
-$$
+```
 
 ## Scaled backward information
 
-The backward message is initialized with $\beta_T(i)=1$ and propagated by
+The backward message is initialized with $`\beta_T(i)=1`$ and propagated by
 
-$$
+```math
 \beta_t(i)
 =
 \frac{1}{c_{t+1}}
 \sum_j
 P_t(i,j)\ell_{t+1}(j)\beta_{t+1}(j).
-$$
+```
 
 The scaling by the corresponding forward normalizer keeps the recursion stable
 and yields the fixed-interval state posterior
 
-$$
+```math
 \gamma_t(i)
 =
 p(x_t=i\mid y_{0:T})
 \propto
 \alpha_t(i)\beta_t(i).
-$$
+```
 
 ## State hindsight correction
 
 Bayesian-ACh reports two complementary state revisions:
 
-$$
+```math
 G_t^{\mathrm{state}}
 =
 D_{\mathrm{KL}}\!\left(
 \gamma_t\,\middle\|\,\alpha_t
 \right),
-$$
+```
 
-$$
+```math
 R_t^{\mathrm{state}}
 =
 \lVert\gamma_t-\alpha_t\rVert_1.
-$$
+```
 
 These quantities answer how strongly later external observations revise the
 state belief that was rational online. They are zero at the terminal time because
-there is no later evidence beyond $T$.
+there is no later evidence beyond $`T`$.
 
 ## Transition-pair revision
 
-After observing $y_{t+1}$, the online pair posterior is
+After observing $`y_{t+1}`$, the online pair posterior is
 
-$$
+```math
 \xi_t^{\mathrm{filter}}(i,j)
 =
 p(x_t=i,x_{t+1}=j\mid y_{0:t+1})
 \propto
 \alpha_t(i)P_t(i,j)\ell_{t+1}(j).
-$$
+```
 
 The fixed-interval pair posterior is
 
-$$
+```math
 \xi_t^{\mathrm{smooth}}(i,j)
 =
 p(x_t=i,x_{t+1}=j\mid y_{0:T})
 \propto
 \xi_t^{\mathrm{filter}}(i,j)\beta_{t+1}(j).
-$$
+```
 
 The transition hindsight signal is
 
-$$
+```math
 G_t^{\mathrm{transition}}
 =
 D_{\mathrm{KL}}\!\left(
@@ -139,7 +139,7 @@ D_{\mathrm{KL}}\!\left(
 \,\middle\|
 \xi_t^{\mathrm{filter}}
 \right).
-$$
+```
 
 An L1 revision is exported as a diagnostic. It is deliberately not promoted to
 an additional benchmark generator because it is strongly correlated with the
@@ -147,12 +147,12 @@ transition KL in this design.
 
 Expected transition counts are
 
-$$
+```math
 \bar N_{ij}^{\mathrm{smooth}}
 =
 \sum_{t=0}^{T-1}
 \xi_t^{\mathrm{smooth}}(i,j).
-$$
+```
 
 The difference from the sum of online pair posteriors quantifies retrospective
 count revision. These expectations are posterior diagnostics and the sufficient
@@ -164,19 +164,19 @@ factorized Dirichlet posterior update.
 `FiniteStateSmoother.sample_smoothed_trajectories(...)` implements
 forward-filtering backward-sampling. It first draws
 
-$$
+```math
 x_T^{(r)}\sim\gamma_T,
-$$
+```
 
 then recursively draws
 
-$$
+```math
 p(x_t=i\mid x_{t+1}=j,y_{0:T})
 =
 p(x_t=i\mid x_{t+1}=j,y_{0:t})
 \propto
 \alpha_t(i)P_t(i,j).
-$$
+```
 
 The implementation vectorizes samples sharing the same next state and never
 modifies the smoother or any posterior result. Tests verify both posterior
@@ -186,12 +186,12 @@ marginals and exact read-only behavior.
 
 A replay path is drawn from
 
-$$
+```math
 p(x_{0:T}\mid y_{0:T}).
-$$
+```
 
 It is therefore a stochastic representation of information already contained
-in $y_{0:T}$. Updating transition parameters again as though the sample were
+in $`y_{0:T}`$. Updating transition parameters again as though the sample were
 an independent observation would count the same measurement interval twice.
 The repository exposes posterior samples for decoding and mechanistic comparison,
 not as an automatic learning update.
@@ -200,13 +200,13 @@ not as an automatic learning update.
 
 For each transition, the expected model surprisal of posterior replay content is
 
-$$
+```math
 S_t^{\mathrm{content}}
 =
 \sum_{i,j}
 \xi_t^{\mathrm{smooth}}(i,j)
 \left[-\log P_t(i,j)\right].
-$$
+```
 
 This measures what kind of transition content the posterior is expected to
 replay. It is mathematically distinct from both online predictive surprise and
