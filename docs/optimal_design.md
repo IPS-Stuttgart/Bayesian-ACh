@@ -47,10 +47,10 @@ intercept and $x_l$ under the design weights. The residual variance is
 $$
 R_{k\mid l}(w)
 =
-\operatorname{Var}_w(x_k)
+\mathrm{Var}_w(x_k)
 -
-\frac{\operatorname{Cov}_w(x_k,x_l)^2}
-     {\operatorname{Var}_w(x_l)}.
+\frac{\mathrm{Cov}_w(x_k,x_l)^2}
+     {\mathrm{Var}_w(x_l)}.
 $$
 
 Under the Gaussian response model
