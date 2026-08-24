@@ -22,6 +22,7 @@ jobs:
       - run: python -m pip install -e '.[dev]'
       - run: ruff check .
       - run: mypy src/bayesian_ach
+      - run: python scripts/check_markdown_math.py
 
   tests:
     runs-on: ubuntu-latest
