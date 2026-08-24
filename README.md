@@ -37,39 +37,39 @@ signal.
 
 For a categorical transition row,
 
-\[
+$$
 \boldsymbol\theta\sim\operatorname{Dir}(\boldsymbol\alpha),
 \qquad
 \widehat{\boldsymbol p}=\frac{\boldsymbol\alpha}{\alpha_0},
-\]
+$$
 
-and observed next state \(j\), the raw innovation is
+and observed next state $j$, the raw innovation is
 
-\[
+$$
 \boldsymbol\nu=\boldsymbol e_j-\widehat{\boldsymbol p}.
-\]
+$$
 
 The exact posterior-mean change is
 
-\[
+$$
 \Delta\widehat{\boldsymbol p}
 =
 \frac{1}{\alpha_0+1}\boldsymbol\nu.
-\]
+$$
 
 The same prediction and observation can therefore produce the same mismatch and
 surprise but a very different rational update when confidence differs.
 
 ### Context inference is not parameter learning
 
-For known context \(m_t\), the exact switching filter computes
+For known context $m_t$, the exact switching filter computes
 
-\[
+$$
 q_t^-(m)=\sum_{m'}q_{t-1}(m')\Pi_{m'm},
 \qquad
 q_t(m)\propto q_t^-(m)
  p(x_{t+1}\mid x_t,u_t,m).
-\]
+$$
 
 This can retrieve an already learned transition model without changing any
 transition parameter. `SwitchingContextFilter.observe(...)` performs inference
@@ -80,9 +80,9 @@ only unless an external context label is explicitly supplied through
 
 `DirichletBOCPD` maintains the full run-length posterior
 
-\[
+$$
 p(r_t\mid x_{0:t},u_{0:t-1})
-\]
+$$
 
 and complete Dirichlet sufficient statistics for each run-length hypothesis. It
 therefore separates retrieval of a stored context from evidence that a new
@@ -92,14 +92,14 @@ piecewise-stationary regime began.
 
 The multisensory filter retains
 
-\[
+$$
 q_t(m,x,\boldsymbol h)
 =
 p(m_t=m,x_t=x,\boldsymbol h_t=\boldsymbol h
 \mid y_{0:t},u_{0:t-1}),
-\]
+$$
 
-where \(\boldsymbol h_t\) contains one binary health state per sensor. A
+where $\boldsymbol h_t$ contains one binary health state per sensor. A
 conflicting visual observation can update state, context, or visual-health
 belief instead of automatically forcing transition learning.
 
@@ -107,7 +107,7 @@ belief instead of automatically forcing transition learning.
 
 Version 0.4 models
 
-\[
+$$
 z_t
 =
 b_j
@@ -117,16 +117,16 @@ b_j
 \boldsymbol\beta^\top\boldsymbol q_t
 +
 (h*u)_t,
-\]
+$$
 
 where
 
-- \(c_{k,t}\) is one candidate Bayesian event train;
-- \(a_s\) is a partially pooled subject-specific signal coefficient;
-- \(u_t=\rho u_{t-1}+\epsilon_t\) is latent tonic release;
-- \(h\) is a causal difference-of-exponentials indicator response;
-- \(\boldsymbol q_t\) contains movement and arousal nuisance regressors;
-- \(b_j\) is a baseline-only session offset.
+- $c_{k,t}$ is one candidate Bayesian event train;
+- $a_s$ is a partially pooled subject-specific signal coefficient;
+- $u_t=\rho u_{t-1}+\epsilon_t$ is latent tonic release;
+- $h$ is a causal difference-of-exponentials indicator response;
+- $\boldsymbol q_t$ contains movement and arousal nuisance regressors;
+- $b_j$ is a baseline-only session offset.
 
 The sensor and tonic timescales are inferred from a known calibration input in
 training sessions only. Candidate coefficients are fitted on training task
@@ -134,15 +134,15 @@ samples, and the final comparison uses held-out task samples only.
 
 ### A stimulation main effect is not eligibility gating
 
-For effective event-to-perturbation lag \(\ell_i\), the closed-loop model tests
+For effective event-to-perturbation lag $\ell_i$, the closed-loop model tests
 
-\[
+$$
 D_i
 =
 Y_i^{\mathrm{active}}-Y_i^{\mathrm{sham}}
 =
 \beta_0+\beta_E A_i E(\ell_i;\theta)+\epsilon_i.
-\]
+$$
 
 The null, latency-independent, and latency-dependent models are compared on
 held-out sessions. Eligibility gating is claimed only when a causal timing
@@ -215,7 +215,7 @@ For the default seed-7 benchmark:
 - the median held-out evidence margin is 771.532 log units;
 - the minimum evidence margin is 421.096 log units;
 - the calibration MAP is exactly
-  \((\tau_r,\tau_d,\rho)=(0.4,1.6,0.97)\);
+  $(\tau_r,\tau_d,\rho)=(0.4,1.6,0.97)$;
 - median nuisance-coefficient MAE is 0.00749;
 - median subject-signal correlation is 0.99769;
 - maximum absolute correlation between sensor-convolved candidates is 0.88880.
