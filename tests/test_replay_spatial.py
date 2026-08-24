@@ -354,11 +354,15 @@ def test_predictor_and_later_outcome_artifacts_are_separate_and_hash_bound(
         producer_commit="1" * 40,
         dataset_id="PfeifferFoster-open-field-2013",
         dataset_sha256="2" * 64,
+        event_selection_parameters_sha256="3" * 64,
+        behavior_field_parameters_sha256="4" * 64,
+        decoder_parameters_sha256="5" * 64,
     )
 
     frozen = write_spatial_predictor_artifact(tmp_path / "predictors", dataset, manifest)
     loaded = load_spatial_predictor_artifact(tmp_path / "predictors")
     assert loaded.predictor_sha256 == frozen.predictor_sha256
+    assert loaded.manifest == manifest
     assert loaded.dataset.event_ids == dataset.event_ids
     np.testing.assert_allclose(loaded.dataset.log_emissions, dataset.log_emissions)
     np.testing.assert_allclose(
@@ -398,6 +402,27 @@ def test_predictor_and_later_outcome_artifacts_are_separate_and_hash_bound(
         too_early.validate(dataset)
 
 
+def test_manifest_rejects_noncausal_selection_or_dirty_producer() -> None:
+    manifest = ReplaySpatialManifest(
+        producer_repository="IPS-Stuttgart/HippoReplayDynamics",
+        producer_commit="1" * 40,
+        dataset_id="PfeifferFoster-open-field-2013",
+        dataset_sha256="2" * 64,
+        event_selection_parameters_sha256="3" * 64,
+        behavior_field_parameters_sha256="4" * 64,
+        decoder_parameters_sha256="5" * 64,
+    )
+    manifest.validate()
+
+    with pytest.raises(ValueError, match="raw LFP"):
+        replace(
+            manifest,
+            event_selection_schedule="decoder_evidence_top_n",
+        ).validate()
+    with pytest.raises(ValueError, match="clean committed worktree"):
+        replace(manifest, producer_clean_worktree=False).validate()
+
+
 def test_predictor_hash_tampering_is_detected(tmp_path) -> None:
     dataset = _dataset()
     manifest = ReplaySpatialManifest(
@@ -405,6 +430,9 @@ def test_predictor_hash_tampering_is_detected(tmp_path) -> None:
         producer_commit="a" * 40,
         dataset_id="PfeifferFoster-open-field-2013",
         dataset_sha256="b" * 64,
+        event_selection_parameters_sha256="c" * 64,
+        behavior_field_parameters_sha256="d" * 64,
+        decoder_parameters_sha256="e" * 64,
     )
     directory = tmp_path / "predictors"
     write_spatial_predictor_artifact(directory, dataset, manifest)

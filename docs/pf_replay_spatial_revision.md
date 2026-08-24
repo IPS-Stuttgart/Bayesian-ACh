@@ -65,6 +65,11 @@ place-field and decoder training observations end at decoder_training_cutoff_s[e
 later outcome time > f_e
 ```
 
+The event cohort must also be independent of decoded spatial content. The
+claim-bearing producer reselects RUN ripples by raw LFP peak power under a
+predeclared top-N-per-session schedule. The earlier 160-event table selected
+downstream of full-session decoder evidence is not an admissible primary cohort.
+
 The decoder must be refitted at each event cutoff (or use a demonstrably
 equivalent prefix cache). The existing producer's one-time, full-session RUN
 place-field fit violates this rule and cannot produce a claim-bearing artifact.
@@ -173,8 +178,10 @@ Schema `bayesian-ach.replay-spatial.v2` writes:
   point-spread/error, nuisance base, all pre-replay candidate fields,
   availability times, optional posterior-derived well masses, and
   rat/session/event identifiers;
-- `replay_spatial_manifest.json`: producer commit, locked-dataset digest,
-  transition/trace convention, and the predictor SHA-256 digest.
+- `replay_spatial_manifest.json`: clean producer commit, locked-dataset
+  digest, transition/trace convention, raw-LFP event-selection schedule,
+  pre-event temporal-holdout point-spread schedule, selection/behavior/decoder
+  parameter digests, and the predictor SHA-256 digest.
 
 Schema `bayesian-ach.replay-later-outcome.v1` writes separate outcome NPZ and
 manifest files bound to the already frozen predictor digest. Loading uses

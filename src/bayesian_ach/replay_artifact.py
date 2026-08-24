@@ -45,17 +45,24 @@ class ReplaySpatialManifest:
     producer_commit: str
     dataset_id: str
     dataset_sha256: str
+    event_selection_parameters_sha256: str
+    behavior_field_parameters_sha256: str
+    decoder_parameters_sha256: str
     trace_schema_version: str = HIPPO_TRACE_SCHEMA_VERSION
     transition_convention: str = HIPPO_TRANSITION_CONVENTION
     candidate_evidence_cutoff: str = "strict_pre_replay"
     likelihood_domain: str = "max_shifted_log_emission_plus_offset"
     decoder_training_schedule: str = "event_specific_prefix_refit"
+    decoder_point_spread_schedule: str = "pre_event_temporal_holdout_run_68pct"
+    event_selection_schedule: str = "lfp_raw_peak_power_top_n_per_session"
+    spatial_coordinate_units: str = "cm"
     well_mass_source: str = "raw_log_emission_posterior"
     behavior_latent_state: str = "compact_destination_well"
     behavior_observation_schedule: str = "tracked_position_and_well_visits_pre_replay"
     state_to_spatial_mapping: str = "pre_replay_route_kernel"
     replay_feedback_used: bool = False
     outcomes_in_predictor: bool = False
+    producer_clean_worktree: bool = True
     schema_version: str = REPLAY_SPATIAL_SCHEMA_VERSION
 
     def validate(self) -> None:
@@ -71,12 +78,34 @@ class ReplaySpatialManifest:
             raise ValueError("producer_commit must be a lowercase 40-character commit SHA")
         if _SHA256_PATTERN.fullmatch(self.dataset_sha256) is None:
             raise ValueError("dataset_sha256 must be a lowercase SHA-256 digest")
+        for value, name in (
+            (
+                self.event_selection_parameters_sha256,
+                "event_selection_parameters_sha256",
+            ),
+            (
+                self.behavior_field_parameters_sha256,
+                "behavior_field_parameters_sha256",
+            ),
+            (self.decoder_parameters_sha256, "decoder_parameters_sha256"),
+        ):
+            if _SHA256_PATTERN.fullmatch(value) is None:
+                raise ValueError(f"{name} must be a lowercase SHA-256 digest")
         if self.candidate_evidence_cutoff != "strict_pre_replay":
             raise ValueError("candidate evidence must be frozen strictly before replay")
         if self.likelihood_domain != "max_shifted_log_emission_plus_offset":
             raise ValueError("raw replay scores require shifted log emissions and offsets")
         if self.decoder_training_schedule != "event_specific_prefix_refit":
             raise ValueError("decoder training must use an event-specific prefix refit")
+        if (
+            self.decoder_point_spread_schedule
+            != "pre_event_temporal_holdout_run_68pct"
+        ):
+            raise ValueError("decoder point spread must use the frozen prefix holdout")
+        if self.event_selection_schedule != "lfp_raw_peak_power_top_n_per_session":
+            raise ValueError("event selection must use raw LFP power only")
+        if self.spatial_coordinate_units != "cm":
+            raise ValueError("spatial coordinates and point spread must use cm")
         if self.well_mass_source != "raw_log_emission_posterior":
             raise ValueError("well masses must be derived from the raw posterior")
         if self.behavior_latent_state != "compact_destination_well":
@@ -92,6 +121,8 @@ class ReplaySpatialManifest:
             raise ValueError("decoded replay must not be fed back as a new observation")
         if self.outcomes_in_predictor:
             raise ValueError("later outcomes must not be present in the predictor artifact")
+        if not self.producer_clean_worktree:
+            raise ValueError("producer must run from a clean committed worktree")
 
 
 @dataclass(frozen=True, slots=True)
