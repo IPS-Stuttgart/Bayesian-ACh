@@ -19,51 +19,51 @@ small-state observation model before fitting any biological ACh measurement.
 
 Let
 
-- $x_t\in\{1,\ldots,S\}$ be the latent task or spatial state;
-- $m_t\in\{1,\ldots,M\}$ be the transition context;
-- $h_{r,t}\in\{0,1\}$ be the health of sensor $r$, with zero nominal and
+- $`x_t\in\{1,\ldots,S\}`$ be the latent task or spatial state;
+- $`m_t\in\{1,\ldots,M\}`$ be the transition context;
+- $`h_{r,t}\in\{0,1\}`$ be the health of sensor $`r`$, with zero nominal and
   one faulty;
-- $y_{r,t}$ be the observation from sensor $r$;
-- $u_{t-1}$ be the action preceding the transition.
+- $`y_{r,t}`$ be the observation from sensor $`r`$;
+- $`u_{t-1}`$ be the action preceding the transition.
 
 The exact filter retains
 
-$$
+```math
 q_t(m,x,\boldsymbol h)
 =
 p(m_t=m,x_t=x,\boldsymbol h_t=\boldsymbol h
 \mid y_{0:t},u_{0:t-1}).
-$$
+```
 
 Context and sensor-health dynamics are specified by
 
-$$
+```math
 \Pi_{m'm}=p(m_t=m\mid m_{t-1}=m'),
-$$
+```
 
-$$
+```math
 Q_r(h'_r,h_r)=p(h_{r,t}=h_r\mid h_{r,t-1}=h'_r).
-$$
+```
 
 Sensor health is conditionally independent across modalities, so
 
-$$
+```math
 Q(\boldsymbol h' ,\boldsymbol h)
 =
 \prod_r Q_r(h'_r,h_r).
-$$
+```
 
 The context-indexed controlled transition model is
 
-$$
+```math
 P_m^{u}(x',x)=p(x_t=x\mid x_{t-1}=x',u_{t-1}=u,m_t=m).
-$$
+```
 
 ## 3. Exact prediction and update
 
 The joint prediction is
 
-$$
+```math
 q_t^-(m,x,\boldsymbol h)
 =
 \sum_{m',x',\boldsymbol h'}
@@ -71,38 +71,38 @@ q_{t-1}(m',x',\boldsymbol h')
 \Pi_{m'm}
 P_m^{u_{t-1}}(x',x)
 Q(\boldsymbol h',\boldsymbol h).
-$$
+```
 
 Each modality has a health-, context-, and state-dependent categorical
 observation model
 
-$$
+```math
 B_{r,h_r}(y\mid m,x)
 =
 p(y_{r,t}=y\mid h_{r,t}=h_r,m_t=m,x_t=x).
-$$
+```
 
 This general form includes ordinary state sensors and explicit context cues.
 Conditionally independent observations yield
 
-$$
+```math
 L_t(m,x,\boldsymbol h)
 =
 \prod_{r\in\mathcal O_t}
 B_{r,h_r}(y_{r,t}\mid m,x),
-$$
+```
 
-where $\mathcal O_t$ contains the modalities present at time $t$. Missing
+where $`\mathcal O_t`$ contains the modalities present at time $`t`$. Missing
 modalities contribute a factor of one. The exact posterior is
 
-$$
+```math
 q_t(m,x,\boldsymbol h)
 =
 \frac{q_t^-(m,x,\boldsymbol h)L_t(m,x,\boldsymbol h)}
 {\sum_{\bar m,\bar x,\bar{\boldsymbol h}}
  q_t^-(\bar m,\bar x,\bar{\boldsymbol h})
  L_t(\bar m,\bar x,\bar{\boldsymbol h})}.
-$$
+```
 
 The denominator is the prequential multisensory evidence used for model-class
 comparison.
@@ -111,30 +111,10 @@ comparison.
 
 `MultisensoryContextFilter` reports quantities that should not be conflated:
 
-- state information gain
-
-  $$
-  D_{\mathrm{KL}}(q_t(x)\|q_t^-(x));
-  $$
-
-- context information gain
-
-  $$
-  D_{\mathrm{KL}}(q_t(m)\|q_t^-(m));
-  $$
-
-- sensor-health information gain
-
-  $$
-  D_{\mathrm{KL}}(q_t(\boldsymbol h)\|q_t^-(\boldsymbol h));
-  $$
-
-- posterior context-switch probability
-
-  $$
-  P(m_t\neq m_{t-1}\mid y_{0:t});
-  $$
-
+- state information gain: $`D_{\mathrm{KL}}(q_t(x)\|q_t^-(x))`$;
+- context information gain: $`D_{\mathrm{KL}}(q_t(m)\|q_t^-(m))`$;
+- sensor-health information gain: $`D_{\mathrm{KL}}(q_t(\boldsymbol h)\|q_t^-(\boldsymbol h))`$;
+- posterior context-switch probability: $`P(m_t\neq m_{t-1}\mid y_{0:t})`$;
 - posterior fault probability for every sensor;
 - posterior probability that each fault began at the current observation;
 - state and context entropy;
@@ -147,7 +127,7 @@ raw sensory conflict. It is not used as a substitute for the full posterior.
 ## 5. Exactness and computational scope
 
 Every binary sensor-health configuration is represented explicitly. With
-$R$ sensors, the joint health state has $2^R$ configurations. One update
+$`R`$ sensors, the joint health state has $`2^R`$ configurations. One update
 therefore scales with the state, context, and complete health configuration
 spaces. The implementation is exact for small hypothesis-driven modality sets,
 not a replacement for high-dimensional learned perception.
@@ -179,26 +159,26 @@ known-context model. All sensors remain healthy, and the manipulation is uncued.
 
 Three exact model classes receive identical observations:
 
-$$
+```math
 \mathcal M_F=\text{fixed world with latent visual health},
-$$
+```
 
-$$
+```math
 \mathcal M_C=\text{healthy sensors with forward/backward contexts},
-$$
+```
 
-$$
+```math
 \mathcal M_S=\text{healthy sensors with forward/structural contexts}.
-$$
+```
 
-The post-change evidence for model $k$ is
+The post-change evidence for model $`k`$ is
 
-$$
+```math
 \mathcal L_k
 =
 \sum_{t\in\mathrm{post}}
 \log p(y_t\mid y_{0:t-1},u_{0:t-1},\mathcal M_k).
-$$
+```
 
 Equal model priors are updated prequentially. No discriminative classifier is
 fit, and simulated true states are used only for post-hoc decoding diagnostics.
