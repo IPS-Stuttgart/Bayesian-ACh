@@ -14,6 +14,16 @@ ROOT = Path(__file__).resolve().parents[1]
 SKIP_PARTS = {".git", ".venv", "build", "dist"}
 
 
+FORBIDDEN_TEX = (
+    (r"\operatorname", r"use standard operators or \mathrm instead of \operatorname"),
+    (r"\(", r"use GitHub inline math $`...`$ instead of \(...\)"),
+    (r"\)", r"use GitHub inline math $`...`$ instead of \(...\)"),
+    (r"\[", r"use fenced math blocks instead of \[...\]"),
+    (r"\]", r"use fenced math blocks instead of \[...\]"),
+    ("$$", "use fenced ```math blocks instead of $$...$$"),
+)
+
+
 def markdown_files() -> list[Path]:
     return sorted(
         path
@@ -22,10 +32,20 @@ def markdown_files() -> list[Path]:
     )
 
 
+def add_forbidden_tex_errors(
+    errors: list[str], rel: Path, line_number: int, line: str
+) -> None:
+    for forbidden, description in FORBIDDEN_TEX:
+        if forbidden in line:
+            errors.append(f"{rel}:{line_number}: {description}")
+
+
 def check_file(path: Path) -> list[str]:
     errors: list[str] = []
     in_fence = False
     fence_marker = ""
+    fence_language = ""
+    rel = path.relative_to(ROOT)
 
     lines = path.read_text(encoding="utf-8").splitlines()
     for line_number, line in enumerate(lines, 1):
@@ -37,39 +57,26 @@ def check_file(path: Path) -> list[str]:
                 in_fence = True
                 fence_marker = marker
                 info = stripped[3:].strip()
-                language = info.split(maxsplit=1)[0] if info else ""
-                if language == "math" and len(line) != len(stripped):
-                    rel = path.relative_to(ROOT)
+                fence_language = info.split(maxsplit=1)[0] if info else ""
+                if fence_language == "math" and len(line) != len(stripped):
                     errors.append(
                         f"{rel}:{line_number}: math fences must not be indented"
                     )
             elif marker == fence_marker:
                 in_fence = False
                 fence_marker = ""
+                fence_language = ""
             continue
 
         if in_fence:
+            if fence_language == "math":
+                add_forbidden_tex_errors(errors, rel, line_number, line)
             continue
-
-        rel = path.relative_to(ROOT)
 
         if stripped.startswith("#") and "$" in stripped:
             errors.append(f"{rel}:{line_number}: keep headings free of math")
 
-        forbidden_forms = (
-            (
-                r"\operatorname",
-                r"use standard operators or \mathrm instead of \operatorname",
-            ),
-            (r"\(", r"use GitHub inline math $`...`$ instead of \(...\)"),
-            (r"\)", r"use GitHub inline math $`...`$ instead of \(...\)"),
-            (r"\[", r"use fenced math blocks instead of \[...\]"),
-            (r"\]", r"use fenced math blocks instead of \[...\]"),
-            ("$$", "use fenced ```math blocks instead of $$...$$"),
-        )
-        for forbidden, description in forbidden_forms:
-            if forbidden in line:
-                errors.append(f"{rel}:{line_number}: {description}")
+        add_forbidden_tex_errors(errors, rel, line_number, line)
 
         # Remove supported inline delimiters before looking for stray dollars.
         remainder = line.replace("$`", "").replace("`$", "")
@@ -80,7 +87,7 @@ def check_file(path: Path) -> list[str]:
             )
 
     if in_fence:
-        errors.append(f"{path.relative_to(ROOT)}: unclosed fenced code block")
+        errors.append(f"{rel}: unclosed fenced code block")
 
     return errors
 
