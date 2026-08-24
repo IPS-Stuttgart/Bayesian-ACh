@@ -93,6 +93,7 @@ def _dataset(*, signal: bool = True, seed: int = 17) -> SpatialReplayDataset:
             coordinates[None, :, :],
             (n_events, n_bins, 2),
         ).copy(),
+        decoder_point_spread_cm=np.full(n_events, 0.5, dtype=float),
         nuisance_base=base,
         candidate_fields=fields,
         candidate_available=np.ones((n_events, n_candidates), dtype=bool),
@@ -111,6 +112,7 @@ def _passing_gate() -> SpatialRecoveryGate:
             selected_margin_lower=0.5,
             decisive=True,
             n_held_out_groups=4,
+            spatial_sigma_multiplier=1.0,
         )
         for generator in SPATIAL_CANDIDATE_NAMES
         for split_unit in ("leave_one_rat_out", "leave_one_session_out")
@@ -124,10 +126,16 @@ def _passing_gate() -> SpatialRecoveryGate:
             selected_margin_lower=-0.1,
             decisive=False,
             n_held_out_groups=4,
+            spatial_sigma_multiplier=1.0,
         )
         for split_unit in ("leave_one_rat_out", "leave_one_session_out")
     )
-    return SpatialRecoveryGate(pure_records=pure, mixture_records=mixture)
+    return SpatialRecoveryGate(
+        pure_records=pure,
+        mixture_records=mixture,
+        required_mixtures=("smoothing_revision+td_error",),
+        required_sigma_multipliers=(1.0,),
+    )
 
 
 def _config() -> SpatialComparisonConfig:
@@ -279,9 +287,6 @@ def test_uninformative_emissions_force_uncertainty_abstention() -> None:
     assert result.winner_margin == pytest.approx(0.0, abs=1e-14)
 
 
-
-
-
 def test_recovery_is_computed_from_loao_and_loso_emission_injections() -> None:
     dataset = _dataset(signal=False)
     gate = run_spatial_recovery_checks(
@@ -289,8 +294,9 @@ def test_recovery_is_computed_from_loao_and_loso_emission_injections() -> None:
         _config(),
         SpatialInjectionRecoveryConfig(
             injection_temperature=4.0,
-            spatial_sigma=0.2,
-            emission_noise_sd=0.0,
+            spatial_sigma_multipliers=(1.0,),
+            emission_noise_sd_nats=0.0,
+            mixtures=(("smoothing_revision", "td_error"),),
             seed=29,
         ),
     )
@@ -308,6 +314,27 @@ def test_recovery_is_computed_from_loao_and_loso_emission_injections() -> None:
     }
     assert all(record.n_held_out_groups >= 4 for record in gate.pure_records)
     assert all(np.isfinite(record.selected_margin) for record in gate.pure_records)
+
+
+def test_decisive_td_win_cannot_pass_as_mixture_abstention() -> None:
+    passing = _passing_gate()
+    decisive_td = tuple(
+        SpatialRecoveryRecord(
+            generator="smoothing_revision+td_error",
+            split_unit=split_unit,
+            selected_candidate="td_error",
+            selected_margin=0.4,
+            selected_margin_lower=0.2,
+            decisive=True,
+            n_held_out_groups=4,
+            spatial_sigma_multiplier=1.0,
+        )
+        for split_unit in ("leave_one_rat_out", "leave_one_session_out")
+    )
+    invalid = replace(passing, mixture_records=decisive_td)
+
+    assert passing.passed is True
+    assert invalid.passed is False
 
 
 def test_spatial_coordinates_are_required_and_cannot_leak_off_support() -> None:
@@ -337,6 +364,10 @@ def test_predictor_and_later_outcome_artifacts_are_separate_and_hash_bound(
     np.testing.assert_allclose(
         loaded.dataset.spatial_coordinates,
         dataset.spatial_coordinates,
+    )
+    np.testing.assert_allclose(
+        loaded.dataset.decoder_point_spread_cm,
+        dataset.decoder_point_spread_cm,
     )
     np.testing.assert_allclose(loaded.dataset.well_masses, dataset.well_masses)
 

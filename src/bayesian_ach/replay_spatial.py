@@ -176,6 +176,7 @@ class SpatialReplayDataset:
     time_mask: NDArray[np.bool_]
     active_spatial_mask: NDArray[np.bool_]
     spatial_coordinates: NDArray[np.float64]
+    decoder_point_spread_cm: NDArray[np.float64]
     nuisance_base: NDArray[np.float64]
     candidate_fields: NDArray[np.float64]
     candidate_available: NDArray[np.bool_]
@@ -287,6 +288,15 @@ class SpatialReplayDataset:
             raise ValueError("active spatial coordinates must be finite")
         if np.any(np.isfinite(coordinates[~spatial])):
             raise ValueError("inactive spatial coordinates must be NaN")
+        point_spread = np.asarray(self.decoder_point_spread_cm, dtype=float)
+        if (
+            point_spread.shape != (n_events,)
+            or not np.all(np.isfinite(point_spread))
+            or np.any(point_spread <= 0.0)
+        ):
+            raise ValueError(
+                "decoder_point_spread_cm must contain one finite positive value per event"
+            )
         if np.any(np.isnan(emissions)) or np.any(emissions == np.inf):
             raise ValueError("log_emissions must not contain NaN or positive infinity")
         offsets = np.asarray(self.log_emission_offsets, dtype=float)
@@ -386,6 +396,7 @@ class SpatialRecoveryRecord:
     selected_margin_lower: float
     decisive: bool
     n_held_out_groups: int
+    spatial_sigma_multiplier: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -400,19 +411,35 @@ class SpatialRecoveryGate:
 
     pure_records: tuple[SpatialRecoveryRecord, ...]
     mixture_records: tuple[SpatialRecoveryRecord, ...]
-    required_mixtures: tuple[str, ...] = ("smoothing_revision+td_error",)
+    required_mixtures: tuple[str, ...] = (
+        "smoothing_revision+td_error",
+        "smoothing_revision+prospective",
+        "smoothing_revision+recency",
+        "smoothing_revision+posterior_content",
+    )
+    required_sigma_multipliers: tuple[float, ...] = (0.5, 1.0, 2.0)
 
     @property
     def passed(self) -> bool:
-        required_splits = {"leave_one_rat_out", "leave_one_session_out"}
+        required_splits = ("leave_one_rat_out", "leave_one_session_out")
+        required_cells = {
+            (split_unit, float(multiplier))
+            for split_unit in required_splits
+            for multiplier in self.required_sigma_multipliers
+        }
         for generator in SPATIAL_CANDIDATE_NAMES:
             matches = [
                 record
                 for record in self.pure_records
                 if record.generator == generator
             ]
+            observed_cells = {
+                (record.split_unit, float(record.spatial_sigma_multiplier))
+                for record in matches
+            }
             if (
-                {record.split_unit for record in matches} != required_splits
+                observed_cells != required_cells
+                or len(matches) != len(required_cells)
                 or any(
                     record.selected_candidate != generator or not record.decisive
                     for record in matches
@@ -425,8 +452,13 @@ class SpatialRecoveryGate:
                 for record in self.mixture_records
                 if record.generator == mixture
             ]
+            observed_cells = {
+                (record.split_unit, float(record.spatial_sigma_multiplier))
+                for record in matches
+            }
             if (
-                {record.split_unit for record in matches} != required_splits
+                observed_cells != required_cells
+                or len(matches) != len(required_cells)
                 or any(record.decisive for record in matches)
             ):
                 return False

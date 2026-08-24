@@ -138,12 +138,19 @@ the claim.
 Recovery is executable rather than asserted. The recovery runner draws latent
 spatial bins from each frozen candidate prior, emits Gaussian raw spatial
 log-likelihood rows around those bins, and sends those rows through the full
-temperature-selection and scoring code. Every pure generator must be recovered
-with fixed-generator simultaneous contrasts under both leave-one-rat-out and
-leave-one-session-out calibration. A registered 50/50
-`smoothing_revision+td_error` injection must remain nondecisive. The persisted
-gate consists of the per-generator, per-split records; it has no manually set
-pass booleans.
+temperature-selection and scoring code. Coordinates and widths are in
+centimeters. Gaussian width is not an arbitrary grid constant: it is the
+event-specific held-out RUN decoder point-spread/error multiplied by the
+prespecified stress range 0.5, 1.0, and 2.0.
+
+Every pure generator must be recovered with fixed-generator simultaneous
+contrasts under both leave-one-rat-out and leave-one-session-out calibration at
+every width. Registered 50/50 mixtures pair `smoothing_revision` with TD error,
+prospective, recency, and posterior-content candidates. A mixture passes only
+when no pure candidate (including null) is decisive; a decisive alternative win
+is a recovery failure, not mixture abstention. The persisted gate consists of
+the per-generator, per-split, per-width records; it has no manually set pass
+booleans.
 
 The software computes scores even when it must abstain. It reports
 `status="identified"` only if all of the following hold:
@@ -162,8 +169,9 @@ null or as evidence for unconstrained prediction error.
 Schema `bayesian-ach.replay-spatial.v2` writes:
 
 - `replay_spatial_predictors.npz`: raw shifted log emissions, offsets, masks,
-  event-specific spatial coordinates, nuisance base, all pre-replay candidate
-  fields, availability times, optional posterior-derived well masses, and
+  event-specific centimeter spatial coordinates, held-out RUN decoder
+  point-spread/error, nuisance base, all pre-replay candidate fields,
+  availability times, optional posterior-derived well masses, and
   rat/session/event identifiers;
 - `replay_spatial_manifest.json`: producer commit, locked-dataset digest,
   transition/trace convention, and the predictor SHA-256 digest.

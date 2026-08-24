@@ -136,6 +136,10 @@ def write_spatial_predictor_artifact(
         time_mask=np.asarray(dataset.time_mask, dtype=bool),
         active_spatial_mask=np.asarray(dataset.active_spatial_mask, dtype=bool),
         spatial_coordinates=np.asarray(dataset.spatial_coordinates, dtype=float),
+        decoder_point_spread_cm=np.asarray(
+            dataset.decoder_point_spread_cm,
+            dtype=float,
+        ),
         nuisance_base=np.asarray(dataset.nuisance_base, dtype=float),
         candidate_fields=np.asarray(dataset.candidate_fields, dtype=float),
         candidate_available=np.asarray(dataset.candidate_available, dtype=bool),
@@ -203,6 +207,10 @@ def load_spatial_predictor_artifact(
             ),
             spatial_coordinates=np.asarray(
                 arrays["spatial_coordinates"],
+                dtype=float,
+            ),
+            decoder_point_spread_cm=np.asarray(
+                arrays["decoder_point_spread_cm"],
                 dtype=float,
             ),
             nuisance_base=np.asarray(arrays["nuisance_base"], dtype=float),

@@ -24,20 +24,38 @@ class SpatialInjectionRecoveryConfig:
     """Frozen settings for end-to-end raw-emission recovery checks."""
 
     injection_temperature: float = 4.0
-    spatial_sigma: float = 0.35
-    emission_noise_sd: float = 0.02
+    spatial_sigma_multipliers: tuple[float, ...] = (0.5, 1.0, 2.0)
+    coordinate_units: str = "cm"
+    emission_noise_sd_nats: float = 0.02
     mixtures: tuple[tuple[str, str], ...] = (
         ("smoothing_revision", "td_error"),
+        ("smoothing_revision", "prospective"),
+        ("smoothing_revision", "recency"),
+        ("smoothing_revision", "posterior_content"),
     )
     seed: int = 701
 
     def validate(self) -> None:
         if not np.isfinite(self.injection_temperature) or self.injection_temperature <= 0:
             raise ValueError("injection_temperature must be finite and positive")
-        if not np.isfinite(self.spatial_sigma) or self.spatial_sigma <= 0:
-            raise ValueError("spatial_sigma must be finite and positive")
-        if not np.isfinite(self.emission_noise_sd) or self.emission_noise_sd < 0:
-            raise ValueError("emission_noise_sd must be finite and nonnegative")
+        multipliers = np.asarray(self.spatial_sigma_multipliers, dtype=float)
+        if (
+            multipliers.ndim != 1
+            or multipliers.size < 1
+            or not np.all(np.isfinite(multipliers))
+            or np.any(multipliers <= 0.0)
+            or len(set(float(value) for value in multipliers)) != multipliers.size
+        ):
+            raise ValueError(
+                "spatial_sigma_multipliers must be unique finite positive values"
+            )
+        if self.coordinate_units != "cm":
+            raise ValueError("spatial coordinates and decoder point spread must use cm")
+        if (
+            not np.isfinite(self.emission_noise_sd_nats)
+            or self.emission_noise_sd_nats < 0
+        ):
+            raise ValueError("emission_noise_sd_nats must be finite and nonnegative")
         for first, second in self.mixtures:
             if (
                 first not in SPATIAL_CANDIDATE_NAMES
@@ -69,6 +87,7 @@ def inject_spatial_replay_emissions(
     generators: tuple[str, ...],
     config: SpatialInjectionRecoveryConfig | None = None,
     *,
+    spatial_sigma_multiplier: float = 1.0,
     seed: int | None = None,
 ) -> SpatialReplayDataset:
     """Replace replay emissions with draws from one candidate or a 50/50 mixture.
@@ -85,6 +104,9 @@ def inject_spatial_replay_emissions(
         raise ValueError("generators must contain one candidate or a 50/50 pair")
     if any(name not in dataset.candidate_names for name in generators):
         raise ValueError("all generators must be registered candidates")
+    multiplier = float(spatial_sigma_multiplier)
+    if not np.isfinite(multiplier) or multiplier <= 0.0:
+        raise ValueError("spatial_sigma_multiplier must be finite and positive")
     generator_indices = [dataset.candidate_names.index(name) for name in generators]
     for index in generator_indices:
         if not np.all(dataset.candidate_available[:, index]):
@@ -114,9 +136,16 @@ def inject_spatial_replay_emissions(
                 (coordinates - coordinates[sampled_position]) ** 2,
                 axis=1,
             )
-            row = -0.5 * squared_distance / config.spatial_sigma**2
-            if config.emission_noise_sd > 0:
-                row += rng.normal(0.0, config.emission_noise_sd, size=row.shape)
+            spatial_sigma_cm = (
+                dataset.decoder_point_spread_cm[event_index] * multiplier
+            )
+            row = -0.5 * squared_distance / spatial_sigma_cm**2
+            if config.emission_noise_sd_nats > 0:
+                row += rng.normal(
+                    0.0,
+                    config.emission_noise_sd_nats,
+                    size=row.shape,
+                )
             row -= np.max(row)
             emissions[event_index, time_index, active] = row
 
@@ -212,79 +241,117 @@ def run_spatial_recovery_checks(
     mixture_records: list[SpatialRecoveryRecord] = []
     split_units = ("leave_one_rat_out", "leave_one_session_out")
     for generator_index, generator in enumerate(dataset.candidate_names):
-        injected = inject_spatial_replay_emissions(
-            dataset,
-            (generator,),
-            injection_config,
-            seed=injection_config.seed + 1009 * generator_index,
-        )
-        for split_index, split_unit in enumerate(split_units):
-            result = _comparison_for_split(
-                injected,
-                comparison_config,
-                split_unit,
+        for multiplier_index, multiplier in enumerate(
+            injection_config.spatial_sigma_multipliers
+        ):
+            injected = inject_spatial_replay_emissions(
+                dataset,
+                (generator,),
+                injection_config,
+                spatial_sigma_multiplier=float(multiplier),
+                seed=(
+                    injection_config.seed
+                    + 10_007 * generator_index
+                    + 101 * multiplier_index
+                ),
             )
-            margin, lower, decisive = _fixed_candidate_contrast(
-                result,
-                generator,
-                comparison_config,
-                seed=injection_config.seed + 1009 * generator_index + split_index,
-            )
-            pure_records.append(
-                SpatialRecoveryRecord(
-                    generator=generator,
-                    split_unit=split_unit,
-                    selected_candidate=result.winner,
-                    selected_margin=margin,
-                    selected_margin_lower=lower,
-                    decisive=decisive,
-                    n_held_out_groups=len(result.rat_ids),
+            for split_index, split_unit in enumerate(split_units):
+                result = _comparison_for_split(
+                    injected,
+                    comparison_config,
+                    split_unit,
                 )
-            )
+                margin, lower, decisive = _fixed_candidate_contrast(
+                    result,
+                    generator,
+                    comparison_config,
+                    seed=(
+                        injection_config.seed
+                        + 10_007 * generator_index
+                        + 101 * multiplier_index
+                        + split_index
+                    ),
+                )
+                pure_records.append(
+                    SpatialRecoveryRecord(
+                        generator=generator,
+                        split_unit=split_unit,
+                        selected_candidate=result.winner,
+                        selected_margin=margin,
+                        selected_margin_lower=lower,
+                        decisive=decisive,
+                        n_held_out_groups=len(result.rat_ids),
+                        spatial_sigma_multiplier=float(multiplier),
+                    )
+                )
 
     mixture_names: list[str] = []
     for mixture_index, mixture in enumerate(injection_config.mixtures):
         mixture_name = "+".join(mixture)
         mixture_names.append(mixture_name)
-        injected = inject_spatial_replay_emissions(
-            dataset,
-            mixture,
-            injection_config,
-            seed=injection_config.seed + 100_003 + 1009 * mixture_index,
-        )
-        for split_index, split_unit in enumerate(split_units):
-            result = _comparison_for_split(
-                injected,
-                comparison_config,
-                split_unit,
-            )
-            margin, lower, decisive = _fixed_candidate_contrast(
-                result,
-                "smoothing_revision",
-                comparison_config,
+        for multiplier_index, multiplier in enumerate(
+            injection_config.spatial_sigma_multipliers
+        ):
+            injected = inject_spatial_replay_emissions(
+                dataset,
+                mixture,
+                injection_config,
+                spatial_sigma_multiplier=float(multiplier),
                 seed=(
                     injection_config.seed
                     + 100_003
-                    + 1009 * mixture_index
-                    + split_index
+                    + 10_007 * mixture_index
+                    + 101 * multiplier_index
                 ),
             )
-            mixture_records.append(
-                SpatialRecoveryRecord(
-                    generator=mixture_name,
-                    split_unit=split_unit,
-                    selected_candidate=result.winner,
-                    selected_margin=margin,
-                    selected_margin_lower=lower,
-                    decisive=decisive,
-                    n_held_out_groups=len(result.rat_ids),
+            for split_index, split_unit in enumerate(split_units):
+                result = _comparison_for_split(
+                    injected,
+                    comparison_config,
+                    split_unit,
                 )
-            )
+                summaries = [
+                    (
+                        candidate,
+                        *_fixed_candidate_contrast(
+                            result,
+                            candidate,
+                            comparison_config,
+                            seed=(
+                                injection_config.seed
+                                + 100_003
+                                + 10_007 * mixture_index
+                                + 101 * multiplier_index
+                                + split_index
+                                + 1_000_003 * candidate_index
+                            ),
+                        ),
+                    )
+                    for candidate_index, candidate in enumerate(
+                        result.candidate_names
+                    )
+                ]
+                selected = max(summaries, key=lambda values: values[2])
+                mixture_records.append(
+                    SpatialRecoveryRecord(
+                        generator=mixture_name,
+                        split_unit=split_unit,
+                        selected_candidate=selected[0],
+                        selected_margin=selected[1],
+                        selected_margin_lower=selected[2],
+                        decisive=any(values[3] for values in summaries),
+                        n_held_out_groups=len(result.rat_ids),
+                        spatial_sigma_multiplier=float(multiplier),
+                    )
+                )
 
     return SpatialRecoveryGate(
         pure_records=tuple(pure_records),
         mixture_records=tuple(mixture_records),
         required_mixtures=tuple(mixture_names),
+        required_sigma_multipliers=tuple(
+            float(value) for value in injection_config.spatial_sigma_multipliers
+        ),
     )
 
 
