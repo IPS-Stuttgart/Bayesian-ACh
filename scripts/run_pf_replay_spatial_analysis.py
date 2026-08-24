@@ -27,7 +27,6 @@ from bayesian_ach.replay_spatial import (
     compare_spatial_replay_candidates,
 )
 
-
 ANALYSIS_SCHEMA = "bayesian-ach.pf-replay-spatial-analysis.v1"
 FOLD_OUTPUT = "pf_replay_spatial_candidate_folds.csv"
 CONTRAST_OUTPUT = "pf_replay_spatial_target_contrasts.csv"
@@ -71,14 +70,18 @@ def _clean_commit() -> str:
     return commit
 
 
-def _write_rows(path: Path, rows: list[dict[str, Any]]) -> None:
-    if not rows:
-        raise ValueError(f"cannot freeze empty table: {path.name}")
-    fieldnames = list(rows[0])
-    if any(list(row) != fieldnames for row in rows):
+def _write_rows(
+    path: Path,
+    rows: list[dict[str, Any]],
+    fieldnames: Sequence[str],
+) -> None:
+    columns = list(fieldnames)
+    if not columns:
+        raise ValueError(f"fieldnames for {path.name} must not be empty")
+    if any(list(row) != columns for row in rows):
         raise ValueError(f"rows for {path.name} have inconsistent columns")
     with path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=fieldnames, lineterminator="\n")
+        writer = csv.DictWriter(handle, fieldnames=columns, lineterminator="\n")
         writer.writeheader()
         writer.writerows(rows)
 
@@ -220,15 +223,56 @@ def run_analysis(
         EXCLUSION_OUTPUT: output / EXCLUSION_OUTPUT,
         GATE_OUTPUT: output / GATE_OUTPUT,
     }
-    for path, rows in (
-        (paths[FOLD_OUTPUT], fold_rows),
-        (paths[CONTRAST_OUTPUT], contrast_rows),
-        (paths[RAT_SCORE_OUTPUT], rat_score_rows),
-        (paths[RECOVERY_OUTPUT], recovery_rows),
-        (paths[EXCLUSION_OUTPUT], exclusion_rows),
-        (paths[GATE_OUTPUT], gate_rows),
-    ):
-        _write_rows(path, rows)
+    table_rows = {
+        FOLD_OUTPUT: (
+            fold_rows,
+            (
+                "candidate",
+                "held_out_rat",
+                "temperature",
+                "mean_log_score_per_bin",
+                "n_events",
+                "n_sessions",
+            ),
+        ),
+        CONTRAST_OUTPUT: (
+            contrast_rows,
+            (
+                "alternative",
+                "mean_margin",
+                "simultaneous_lower_bound",
+                "exact_one_sided_sign_flip_p",
+            ),
+        ),
+        RAT_SCORE_OUTPUT: (
+            rat_score_rows,
+            ("rat", "candidate", "mean_log_score_per_bin"),
+        ),
+        RECOVERY_OUTPUT: (
+            recovery_rows,
+            (
+                "recovery_kind",
+                "generator",
+                "split_unit",
+                "selected_candidate",
+                "selected_margin",
+                "selected_margin_lower",
+                "decisive",
+                "n_held_out_groups",
+                "spatial_sigma_multiplier",
+            ),
+        ),
+        EXCLUSION_OUTPUT: (
+            exclusion_rows,
+            ("event_id", "reason"),
+        ),
+        GATE_OUTPUT: (
+            gate_rows,
+            ("gate", "passed", "value", "required"),
+        ),
+    }
+    for name, (rows, fieldnames) in table_rows.items():
+        _write_rows(paths[name], rows, fieldnames)
 
     report = [
         "# PF replay spatial revision analysis",

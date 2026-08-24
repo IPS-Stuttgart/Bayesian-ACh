@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import csv
 import hashlib
 import json
 import re
@@ -52,6 +53,7 @@ class ReplaySpatialManifest:
     dataset_verified_total_bytes: int
     dataset_verified_session_count: int
     dataset_verified_file_records_sha256: str
+    route_manifest_file: str
     route_manifest_file_sha256: str
     route_producer_commit: str
     route_producer_clean_worktree: bool
@@ -59,6 +61,7 @@ class ReplaySpatialManifest:
     route_segments_sha256: str
     route_points_sha256: str
     cohort_sha256: str
+    event_audit_file: str
     event_audit_sha256: str
     event_selection_parameters_sha256: str
     behavior_field_parameters_sha256: str
@@ -142,6 +145,10 @@ class ReplaySpatialManifest:
             "replay_spatial_dataset_verification.json"
         ):
             raise ValueError("dataset verifier report file is not the frozen name")
+        if self.route_manifest_file != "replay_spatial_route_manifest.json":
+            raise ValueError("route manifest file is not the frozen name")
+        if self.event_audit_file != "replay_spatial_event_audit.csv":
+            raise ValueError("event audit file is not the frozen name")
         if (
             self.dataset_verified_file_count < 1
             or self.dataset_verified_total_bytes < 1
@@ -209,6 +216,118 @@ class ReplaySpatialManifest:
             raise ValueError("producer must run from a clean committed worktree")
 
 
+def _expected_dataset_verifier_report(
+    manifest: ReplaySpatialManifest,
+) -> dict[str, object]:
+    return {
+        "schema_version": "hipporeplayimm.pf-dataset-verification.v1",
+        "status": "pass",
+        "dataset_sha256": manifest.dataset_sha256,
+        "dataset_manifest_file_sha256": manifest.dataset_manifest_file_sha256,
+        "verified_file_count": manifest.dataset_verified_file_count,
+        "verified_total_bytes": manifest.dataset_verified_total_bytes,
+        "verified_session_count": manifest.dataset_verified_session_count,
+        "verified_file_records_sha256": (
+            manifest.dataset_verified_file_records_sha256
+        ),
+        "missing_files": [],
+        "extra_files": [],
+    }
+
+
+def _hash_checked_json(
+    path: Path,
+    expected_sha256: str,
+    *,
+    label: str,
+) -> dict[str, object]:
+    if not path.is_file() or _sha256(path) != expected_sha256:
+        raise ValueError(f"{label} SHA-256 does not match its manifest")
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError(f"{label} must contain a JSON object")
+    return payload
+
+
+def _validate_provenance_sidecars(
+    source: Path,
+    dataset: SpatialReplayDataset,
+    manifest: ReplaySpatialManifest,
+) -> None:
+    report = _hash_checked_json(
+        source / manifest.dataset_verifier_report_file,
+        manifest.dataset_verifier_report_sha256,
+        label="dataset verifier report",
+    )
+    if report != _expected_dataset_verifier_report(manifest):
+        raise ValueError("dataset verifier report content disagrees with manifest")
+
+    route = _hash_checked_json(
+        source / manifest.route_manifest_file,
+        manifest.route_manifest_file_sha256,
+        label="route provenance manifest",
+    )
+    if (
+        route.get("analysis") != "replay_behavior_route_primitives"
+        or route.get("producer_commit") != manifest.route_producer_commit
+        or route.get("producer_clean_worktree") is not True
+        or route.get("route_smoothing_scope") != manifest.route_smoothing_scope
+        or route.get("parameters_sha256") != manifest.route_parameters_sha256
+    ):
+        raise ValueError("route provenance content disagrees with manifest")
+    output_sha256 = route.get("output_sha256")
+    if not isinstance(output_sha256, dict):
+        raise ValueError("route provenance output hashes are missing")
+    if (
+        output_sha256.get("replay_behavior_route_segments.csv")
+        != manifest.route_segments_sha256
+        or output_sha256.get("replay_behavior_route_segment_points.csv")
+        != manifest.route_points_sha256
+    ):
+        raise ValueError("route table hashes disagree with route provenance")
+
+    audit_path = source / manifest.event_audit_file
+    if not audit_path.is_file() or _sha256(audit_path) != manifest.event_audit_sha256:
+        raise ValueError("event audit SHA-256 does not match its manifest")
+    with audit_path.open("r", encoding="utf-8", newline="") as handle:
+        rows = list(csv.DictReader(handle))
+    if len(rows) != dataset.n_events:
+        raise ValueError("event audit row count does not match predictor events")
+    event_ids = tuple(str(row.get("event_id", "")) for row in rows)
+    sessions = tuple(str(row.get("session", "")) for row in rows)
+    rats = tuple(str(row.get("rat", "")) for row in rows)
+    if (
+        event_ids != dataset.event_ids
+        or sessions != tuple(np.asarray(dataset.session_ids, dtype=str))
+        or rats != tuple(np.asarray(dataset.rat_ids, dtype=str))
+    ):
+        raise ValueError("event audit identifiers do not match predictor arrays")
+    try:
+        cohort = [
+            {
+                "event_id": event_id,
+                "session": session,
+                "event_index": int(row["event_index"]),
+            }
+            for event_id, session, row in zip(
+                event_ids,
+                sessions,
+                rows,
+                strict=True,
+            )
+        ]
+    except (KeyError, TypeError, ValueError) as error:
+        raise ValueError("event audit event_index values are invalid") from error
+    cohort_sha256 = hashlib.sha256(
+        (
+            json.dumps(cohort, sort_keys=True, separators=(",", ":"))
+            + "\n"
+        ).encode("utf-8")
+    ).hexdigest()
+    if cohort_sha256 != manifest.cohort_sha256:
+        raise ValueError("event audit cohort digest does not match its manifest")
+
+
 @dataclass(frozen=True, slots=True)
 class FrozenPredictorArtifact:
     dataset: SpatialReplayDataset
@@ -227,6 +346,7 @@ def write_spatial_predictor_artifact(
     manifest.validate()
     output = Path(directory)
     output.mkdir(parents=True, exist_ok=True)
+    _validate_provenance_sidecars(output, dataset, manifest)
     predictor_path = output / "replay_spatial_predictors.npz"
     well_masses = (
         np.empty((dataset.n_events, 0), dtype=float)
@@ -339,6 +459,7 @@ def load_spatial_predictor_artifact(
             well_ids=tuple(str(value) for value in arrays["well_ids"]),
         )
     dataset.validate()
+    _validate_provenance_sidecars(source, dataset, manifest)
     return FrozenPredictorArtifact(dataset, manifest, observed_sha256)
 
 

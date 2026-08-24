@@ -182,8 +182,11 @@ The software computes scores even when it must abstain. It reports
 - candidate-field collinearity remains below the frozen threshold; and
 - every prespecified smoothing contrast has a positive simultaneous lower bound.
 
-Failure of any gate yields `abstain`. It must not be rewritten as a biological
-null or as evidence for unconstrained prediction error.
+Failure of any gate yields `abstain`. A zero-event complete-case cohort still
+freezes a technical-abstention artifact with every excluded event ID, empty
+header-only score/recovery tables, failed gates, and hashes; it does not crash
+or silently disappear. An abstention must not be rewritten as a biological null
+or as evidence for unconstrained prediction error.
 
 ## Artifact files
 
@@ -199,11 +202,15 @@ Schema `bayesian-ach.replay-spatial.v2` writes:
   commit/config/table hashes, ordered cohort and event-audit hashes,
   transition/trace convention, offline raw-LFP event-selection schedule,
   pre-event temporal-holdout point-spread schedule, selection/behavior/decoder
-  parameter digests, and the predictor SHA-256 digest.
+  parameter digests, the named event-audit and copied route-provenance files,
+  and the predictor SHA-256 digest.
 
 Schema `bayesian-ach.replay-later-outcome.v1` writes separate outcome NPZ and
 manifest files bound to the already frozen predictor digest. Loading uses
-`allow_pickle=False`; both files are hash checked before analysis.
+`allow_pickle=False`. It opens and hash-checks the actual full-tree verifier
+report, copied clean route manifest, event audit, and predictor. Verifier report
+content, route producer/config/table hashes, audit identifiers, and the ordered
+cohort digest must all agree with the predictor manifest before analysis.
 
 
 ## Frozen real-data runner

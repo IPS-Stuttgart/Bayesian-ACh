@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import csv
 import hashlib
+import io
 import json
 from dataclasses import replace
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -167,7 +170,10 @@ def _config() -> SpatialComparisonConfig:
     )
 
 
-def _manifest() -> ReplaySpatialManifest:
+def _manifest(
+    directory: Path | None = None,
+    dataset: SpatialReplayDataset | None = None,
+) -> ReplaySpatialManifest:
     dataset_sha256 = "2" * 64
     dataset_manifest_file_sha256 = "6" * 64
     file_records_sha256 = "7" * 64
@@ -183,9 +189,89 @@ def _manifest() -> ReplaySpatialManifest:
         "missing_files": [],
         "extra_files": [],
     }
-    report_sha256 = hashlib.sha256(
-        (json.dumps(report, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    report_bytes = (
+        json.dumps(report, indent=2, sort_keys=True) + "\n"
+    ).encode("utf-8")
+    report_sha256 = hashlib.sha256(report_bytes).hexdigest()
+
+    route_parameters = {"median_window_s": 0.167, "gaussian_sigma_s": 0.1}
+    route_parameters_sha256 = hashlib.sha256(
+        json.dumps(
+            route_parameters,
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
     ).hexdigest()
+    route_payload = {
+        "analysis": "replay_behavior_route_primitives",
+        "producer_commit": "9" * 40,
+        "producer_clean_worktree": True,
+        "route_smoothing_scope": "within_completed_fill_interval",
+        "parameters": route_parameters,
+        "parameters_sha256": route_parameters_sha256,
+        "output_sha256": {
+            "replay_behavior_route_segments.csv": "b" * 64,
+            "replay_behavior_route_segment_points.csv": "c" * 64,
+        },
+    }
+    route_bytes = (
+        json.dumps(route_payload, indent=2, sort_keys=True) + "\n"
+    ).encode("utf-8")
+    route_sha256 = hashlib.sha256(route_bytes).hexdigest()
+
+    audit_buffer = io.StringIO(newline="")
+    writer = csv.DictWriter(
+        audit_buffer,
+        fieldnames=("event_id", "session", "rat", "event_index"),
+        lineterminator="\n",
+    )
+    writer.writeheader()
+    cohort: list[dict[str, object]] = []
+    if dataset is not None:
+        for index, (event_id, session, rat) in enumerate(
+            zip(
+                dataset.event_ids,
+                np.asarray(dataset.session_ids, dtype=str),
+                np.asarray(dataset.rat_ids, dtype=str),
+                strict=True,
+            )
+        ):
+            writer.writerow(
+                {
+                    "event_id": event_id,
+                    "session": session,
+                    "rat": rat,
+                    "event_index": index,
+                }
+            )
+            cohort.append(
+                {
+                    "event_id": event_id,
+                    "session": str(session),
+                    "event_index": index,
+                }
+            )
+    audit_bytes = audit_buffer.getvalue().encode("utf-8")
+    audit_sha256 = hashlib.sha256(audit_bytes).hexdigest()
+    cohort_sha256 = hashlib.sha256(
+        (
+            json.dumps(cohort, sort_keys=True, separators=(",", ":"))
+            + "\n"
+        ).encode("utf-8")
+    ).hexdigest()
+
+    if directory is not None:
+        if dataset is None:
+            raise ValueError("dataset is required when writing provenance sidecars")
+        directory.mkdir(parents=True, exist_ok=True)
+        (directory / "replay_spatial_dataset_verification.json").write_bytes(
+            report_bytes
+        )
+        (directory / "replay_spatial_route_manifest.json").write_bytes(
+            route_bytes
+        )
+        (directory / "replay_spatial_event_audit.csv").write_bytes(audit_bytes)
+
     return ReplaySpatialManifest(
         producer_repository="IPS-Stuttgart/HippoReplayDynamics",
         producer_commit="1" * 40,
@@ -200,19 +286,20 @@ def _manifest() -> ReplaySpatialManifest:
         dataset_verified_total_bytes=425_953_051,
         dataset_verified_session_count=8,
         dataset_verified_file_records_sha256=file_records_sha256,
-        route_manifest_file_sha256="8" * 64,
+        route_manifest_file="replay_spatial_route_manifest.json",
+        route_manifest_file_sha256=route_sha256,
         route_producer_commit="9" * 40,
         route_producer_clean_worktree=True,
-        route_parameters_sha256="a" * 64,
+        route_parameters_sha256=route_parameters_sha256,
         route_segments_sha256="b" * 64,
         route_points_sha256="c" * 64,
-        cohort_sha256="d" * 64,
-        event_audit_sha256="e" * 64,
+        cohort_sha256=cohort_sha256,
+        event_audit_file="replay_spatial_event_audit.csv",
+        event_audit_sha256=audit_sha256,
         event_selection_parameters_sha256="3" * 64,
         behavior_field_parameters_sha256="4" * 64,
         decoder_parameters_sha256="5" * 64,
     )
-
 
 def test_signed_revision_field_is_kl_weighted_signed_and_pre_replay() -> None:
     filtered = np.array([[0.8, 0.2], [0.5, 0.5]], dtype=float)
@@ -436,6 +523,34 @@ def test_recovery_subsets_to_exact_common_cohort_and_reports_exclusions() -> Non
     assert all(np.isfinite(record.selected_margin) for record in gate.pure_records)
 
 
+def test_zero_complete_case_cohort_freezes_technical_abstention() -> None:
+    dataset = _dataset(signal=False)
+    unavailable = np.zeros_like(dataset.candidate_available, dtype=bool)
+    empty = replace(dataset, candidate_available=unavailable)
+    gate = run_spatial_recovery_checks(
+        empty,
+        _config(),
+        SpatialInjectionRecoveryConfig(
+            spatial_sigma_multipliers=(1.0,),
+            mixtures=(("smoothing_revision", "td_error"),),
+        ),
+    )
+    result = compare_spatial_replay_candidates(
+        empty,
+        _config(),
+        recovery_gate=gate,
+    )
+
+    assert gate.common_event_count == 0
+    assert gate.source_event_count == dataset.n_events
+    assert gate.excluded_event_ids == dataset.event_ids
+    assert gate.passed is False
+    assert result.common_event_count == 0
+    assert result.status == "abstain"
+    assert "too_few_independent_rats" in result.abstention_reasons
+    assert "recovery_gate_failed" in result.abstention_reasons
+
+
 def test_decisive_td_win_cannot_pass_as_mixture_abstention() -> None:
     passing = _passing_gate()
     decisive_td = tuple(
@@ -469,10 +584,11 @@ def test_predictor_and_later_outcome_artifacts_are_separate_and_hash_bound(
     tmp_path,
 ) -> None:
     dataset = _dataset(signal=True)
-    manifest = _manifest()
+    directory = tmp_path / "predictors"
+    manifest = _manifest(directory, dataset)
 
-    frozen = write_spatial_predictor_artifact(tmp_path / "predictors", dataset, manifest)
-    loaded = load_spatial_predictor_artifact(tmp_path / "predictors")
+    frozen = write_spatial_predictor_artifact(directory, dataset, manifest)
+    loaded = load_spatial_predictor_artifact(directory)
     assert loaded.predictor_sha256 == frozen.predictor_sha256
     assert loaded.manifest == manifest
     assert loaded.dataset.event_ids == dataset.event_ids
@@ -527,10 +643,36 @@ def test_manifest_rejects_noncausal_selection_or_dirty_producer() -> None:
         replace(manifest, producer_clean_worktree=False).validate()
 
 
+def test_provenance_sidecar_tampering_is_detected(tmp_path) -> None:
+    dataset = _dataset()
+    directory = tmp_path / "predictors"
+    manifest = _manifest(directory, dataset)
+    write_spatial_predictor_artifact(directory, dataset, manifest)
+
+    report = directory / "replay_spatial_dataset_verification.json"
+    report.write_bytes(report.read_bytes() + b" ")
+    with pytest.raises(ValueError, match="verifier report SHA-256"):
+        load_spatial_predictor_artifact(directory)
+
+    manifest = _manifest(directory, dataset)
+    write_spatial_predictor_artifact(directory, dataset, manifest)
+    route = directory / "replay_spatial_route_manifest.json"
+    route.write_bytes(route.read_bytes() + b" ")
+    with pytest.raises(ValueError, match="route provenance manifest SHA-256"):
+        load_spatial_predictor_artifact(directory)
+
+    manifest = _manifest(directory, dataset)
+    write_spatial_predictor_artifact(directory, dataset, manifest)
+    audit = directory / "replay_spatial_event_audit.csv"
+    audit.write_bytes(audit.read_bytes() + b" ")
+    with pytest.raises(ValueError, match="event audit SHA-256"):
+        load_spatial_predictor_artifact(directory)
+
+
 def test_predictor_hash_tampering_is_detected(tmp_path) -> None:
     dataset = _dataset()
-    manifest = _manifest()
     directory = tmp_path / "predictors"
+    manifest = _manifest(directory, dataset)
     write_spatial_predictor_artifact(directory, dataset, manifest)
     with (directory / "replay_spatial_predictors.npz").open("ab") as handle:
         handle.write(b"tamper")

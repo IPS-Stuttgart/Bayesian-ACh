@@ -245,6 +245,34 @@ def run_spatial_recovery_checks(
         for event_id, keep in zip(source_event_ids, common_mask, strict=True)
         if not bool(keep)
     )
+    if not np.any(common_mask):
+        comparison_config = (
+            SpatialComparisonConfig()
+            if comparison_config is None
+            else comparison_config
+        )
+        comparison_config.validate()
+        injection_config = (
+            SpatialInjectionRecoveryConfig()
+            if injection_config is None
+            else injection_config
+        )
+        injection_config.validate()
+        return SpatialRecoveryGate(
+            pure_records=(),
+            mixture_records=(),
+            null_records=(),
+            source_event_count=len(source_event_ids),
+            common_event_count=0,
+            excluded_event_ids=excluded_event_ids,
+            required_mixtures=tuple(
+                "+".join(mixture) for mixture in injection_config.mixtures
+            ),
+            required_sigma_multipliers=tuple(
+                float(value)
+                for value in injection_config.spatial_sigma_multipliers
+            ),
+        )
     dataset = subset_spatial_replay_dataset(dataset, common_mask)
     comparison_config = (
         SpatialComparisonConfig()
