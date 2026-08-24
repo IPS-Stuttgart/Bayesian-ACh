@@ -52,6 +52,53 @@ If the tracked behavior and transition model produce negligible
 filtering-to-smoothing KL, the revision candidate is unidentifiable and the
 analysis abstains. That outcome is not evidence against neural replay.
 
+## Exact revision field and interpretation
+
+For replay event e, the exported field is
+
+```text
+R_e(x) = sum_r KL(q_r || f_r)
+               * exp(-(start_e - end_r) / 300 s)
+               * sum_k (q_r(k) - f_r(k)) M_r,k(x)
+z_e(x) = R_e(x) / sum_x |R_e(x)|
+```
+
+Here r ranges over eligible routes completed before the ripple, f is the
+destination-well filter at the fixed route prefix, q is the smoother at that
+same historical point, and M maps each well state to the event grid. The
+downstream score base-centers and base-standardizes z, then tunes only a
+nonnegative temperature on training animals. Thus the primary comparison tests
+the signed spatial pattern, not the total amount of historical revision.
+
+| Modeling choice | Frozen value | Consequence |
+|---|---:|---|
+| latent state | destination-well identity | no within-route state switching |
+| within-route transition | identity matrix | destination is static |
+| transition pseudocount | 0.5 | regularizes sparse origin-to-well counts |
+| route resampling | 21 arc points | fixes correspondence across paths |
+| filtering prefix | 50% (11 of 21 points) | defines the historical revision time |
+| path observation width | 15 cm | fixes template likelihood resolution |
+| terminal-label error | 0.02 | strongly anchors the completed destination |
+| spatial route-kernel width | 10 cm | maps well revisions to decoder bins |
+| revision age constant | 300 s | exponentially discounts older routes |
+| revision magnitude | KL(q || f) | asymmetric information-gain weight |
+| field normalization | divide by sum absolute mass | preserves sign, removes scale |
+| score normalization | nuisance-base centering/SD | further removes eventwise scale |
+| temperature grid | 0, .25, .5, 1, 2, 4, 8 | polarity fixed; strength tuned LO-rat |
+
+A route template uses earlier same-origin/same-destination routes when present
+and otherwise falls back to earlier routes with the same destination. That
+fallback, the hyperparameters above, the all-route aggregation, the active
+decoder grid, and complete-case selection are modeling choices, not identified
+biological quantities.
+
+The replay candidate prior is constant across event time bins and the score is
+a mean of per-bin spatial marginal log likelihoods. Therefore a positive
+contrast would identify better time-marginal spatial alignment with this field,
+not replay sequence order, forward/reverse direction, or ordered reinstatement.
+It would not identify a smoothing generator, the animal's algorithm, causality,
+or acetylcholine coding.
+
 ## Cutoff semantics
 
 For event e with start time s_e and end time f_e:
@@ -161,7 +208,10 @@ event-specific held-out RUN decoder point-spread/error multiplied by the
 prespecified stress range 0.5, 1.0, and 2.0.
 
 This is post-decoder scoring recovery at empirical decoder resolution; it is
-not end-to-end spike/place-field decoder recovery. A nuisance-base/null
+not end-to-end spike/place-field decoder recovery. Because injection uses the
+same frozen candidate fields that the scorer receives, successful recovery
+checks implementation and finite decoder resolution, not robustness to a
+misspecified smoothing field or to alternative behavioral hyperparameters. A nuisance-base/null
 injection is a required negative control: no non-null candidate may be decisive.
 Every pure generator must be recovered with fixed-generator simultaneous
 contrasts under both leave-one-rat-out and leave-one-session-out calibration at
