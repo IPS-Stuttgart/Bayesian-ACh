@@ -702,6 +702,7 @@ def compare_spatial_replay_candidates(
     alternative_indices = [
         index for index in range(len(all_names)) if index != target_index
     ]
+    ci: tuple[float, float]
     if rat_score_rows:
         rat_scores = np.asarray(rat_score_rows, dtype=float)
         mean_scores = rat_scores.mean(axis=0)
