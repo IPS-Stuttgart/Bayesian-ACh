@@ -12,9 +12,10 @@ schedule evaluated on those same outcomes.
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from itertools import combinations
-from typing import Final, Iterable, Mapping, Sequence
+from typing import Final
 
 import numpy as np
 from numpy.typing import NDArray

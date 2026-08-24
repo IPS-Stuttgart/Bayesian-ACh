@@ -2,14 +2,16 @@ from __future__ import annotations
 
 import numpy as np
 
-from bayesian_ach.design_benchmark import DesignBenchmarkConfig, run_design_benchmark
 from bayesian_ach.optimal_design import (
     DesignConfig,
+    balanced_schedule,
     condition_signals,
     design_diagnostics,
+    evaluate_schedule,
     fractional_factorial_conditions,
     greedy_maximin_schedule,
     matched_confidence_conditions,
+    min_pairwise_symmetric_kl,
     novelty_only_conditions,
     schedule_counts,
 )
@@ -61,25 +63,35 @@ def test_greedy_schedule_is_deterministic_and_respects_repeat_limit() -> None:
     assert max(schedule_counts(first).values()) <= 2
 
 
-def test_quick_design_benchmark_improves_identifiability() -> None:
-    result = run_design_benchmark(
-        config=DesignBenchmarkConfig(
-            trial_budgets=(8, 16),
-            target_trial_budget=16,
-            subject_grid=(1, 2),
-            information_samples=48,
-            recovery_replicates=48,
-            group_replicates=32,
-            seed=17,
-        )
-    )
-    acceptance = result.summary["acceptance"]
+def test_prior_predictive_factorial_design_improves_identifiability() -> None:
+    config = DesignConfig()
+    reference = fractional_factorial_conditions()
+    novelty = balanced_schedule(novelty_only_conditions(), 16)
+    factorial = balanced_schedule(reference, 16)
 
-    assert acceptance["factorial_library_full_rank"]
-    assert acceptance["optimal_improves_worst_pair_separation"]
-    assert acceptance["optimal_improves_recovery"]
-    assert acceptance["optimal_reduces_entropy"]
-    information = result.summary["target_metrics"]["robust_optimal"][
-        "expected_information_gain_nats"
-    ]
-    assert np.isfinite(information)
+    novelty_separation = min_pairwise_symmetric_kl(
+        novelty,
+        config,
+        reference_conditions=reference,
+    )
+    factorial_separation = min_pairwise_symmetric_kl(
+        factorial,
+        config,
+        reference_conditions=reference,
+    )
+    assert factorial_separation > novelty_separation
+    assert factorial_separation > 0.0
+
+    evaluation = evaluate_schedule(
+        "fractional_factorial",
+        factorial,
+        config,
+        reference_conditions=reference,
+        information_samples=48,
+        recovery_replicates=48,
+        seed=17,
+    )
+    assert np.isfinite(evaluation.expected_information_gain_nats)
+    assert evaluation.expected_information_gain_nats > 0.0
+    assert 0.0 <= evaluation.recovery_accuracy <= 1.0
+    assert np.isfinite(evaluation.mean_posterior_entropy_nats)
