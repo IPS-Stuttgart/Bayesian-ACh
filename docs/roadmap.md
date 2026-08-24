@@ -80,8 +80,8 @@ Acceptance evidence for the default seed-7 benchmark:
 - 6 subjects, 5 sessions per subject, and 2 held-out sessions per subject;
 - 7/7 computational generators recovered;
 - median and minimum held-out log-evidence margins: 771.532 and 421.096;
-- calibration MAP exactly recovers $\tau_r=0.4$, $\tau_d=1.6$, and
-  $\rho=0.97$;
+- calibration MAP exactly recovers $`\tau_r=0.4`$, $`\tau_d=1.6`$, and
+  $`\rho=0.97`$;
 - median nuisance-coefficient MAE: 0.00749;
 - median subject-signal correlation: 0.99769;
 - maximum absolute post-sensor candidate correlation: 0.88880.
