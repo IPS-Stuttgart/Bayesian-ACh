@@ -720,10 +720,11 @@ def compare_spatial_replay_candidates(
             replace=True,
         ).mean(axis=1)
         tail = (1.0 - config.simultaneous_confidence_level) / 2.0
-        ci = tuple(
-            float(value)
-            for value in np.quantile(descriptive_draws, [tail, 1.0 - tail])
+        quantiles = np.quantile(
+            descriptive_draws,
+            [tail, 1.0 - tail],
         )
+        ci = (float(quantiles[0]), float(quantiles[1]))
 
         paired = (
             rat_scores[:, [target_index]]
