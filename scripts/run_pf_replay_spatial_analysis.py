@@ -5,14 +5,15 @@ from __future__ import annotations
 
 import argparse
 import csv
-from dataclasses import asdict
-from datetime import datetime, timezone
 import hashlib
 import json
-from pathlib import Path
 import re
 import subprocess
-from typing import Any, Sequence
+from collections.abc import Sequence
+from dataclasses import asdict
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -189,7 +190,11 @@ def run_analysis(
         {
             "gate": "post_decoder_recovery",
             "passed": recovery.passed,
-            "value": len(recovery.pure_records) + len(recovery.mixture_records) + len(recovery.null_records),
+            "value": (
+                len(recovery.pure_records)
+                + len(recovery.mixture_records)
+                + len(recovery.null_records)
+            ),
             "required": "all pure pass; mixtures and null abstain",
         },
         {

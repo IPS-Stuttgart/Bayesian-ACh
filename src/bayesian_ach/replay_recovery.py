@@ -230,7 +230,12 @@ def run_spatial_recovery_checks(
     comparison_config: SpatialComparisonConfig | None = None,
     injection_config: SpatialInjectionRecoveryConfig | None = None,
 ) -> SpatialRecoveryGate:
-    """Compute post-decoder LOAO/LOSO scoring recovery on the common cohort.\n\n    This tests Gaussian raw-emission score discrimination at the empirical\n    decoder point spread. It is not end-to-end spike/place-field decoder\n    recovery. Original event IDs and exclusions are retained in the gate.\n    """
+    """Compute post-decoder LOAO/LOSO scoring recovery on the common cohort.
+
+    This tests Gaussian raw-emission score discrimination at the empirical
+    decoder point spread. It is not end-to-end spike/place-field decoder
+    recovery. Original event IDs and exclusions are retained in the gate.
+    """
 
     dataset.validate()
     source_event_ids = tuple(dataset.event_ids)

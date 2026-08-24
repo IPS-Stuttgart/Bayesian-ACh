@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import replace
 import hashlib
 import json
+from dataclasses import replace
 
 import numpy as np
 import pytest
