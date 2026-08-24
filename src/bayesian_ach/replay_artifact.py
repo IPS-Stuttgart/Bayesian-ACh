@@ -45,6 +45,21 @@ class ReplaySpatialManifest:
     producer_commit: str
     dataset_id: str
     dataset_sha256: str
+    dataset_manifest_file_sha256: str
+    dataset_verifier_report_file: str
+    dataset_verifier_report_sha256: str
+    dataset_verified_file_count: int
+    dataset_verified_total_bytes: int
+    dataset_verified_session_count: int
+    dataset_verified_file_records_sha256: str
+    route_manifest_file_sha256: str
+    route_producer_commit: str
+    route_producer_clean_worktree: bool
+    route_parameters_sha256: str
+    route_segments_sha256: str
+    route_points_sha256: str
+    cohort_sha256: str
+    event_audit_sha256: str
     event_selection_parameters_sha256: str
     behavior_field_parameters_sha256: str
     decoder_parameters_sha256: str
@@ -55,6 +70,11 @@ class ReplaySpatialManifest:
     decoder_training_schedule: str = "event_specific_prefix_refit"
     decoder_point_spread_schedule: str = "pre_event_temporal_holdout_run_68pct"
     event_selection_schedule: str = "lfp_raw_peak_power_top_n_per_session"
+    event_selection_time_scope: str = "full_session_offline_rank"
+    dataset_verification_schedule: str = (
+        "locked_full_tree_path_size_sha256_no_extra_files"
+    )
+    route_smoothing_scope: str = "within_completed_fill_interval"
     spatial_coordinate_units: str = "cm"
     well_mass_source: str = "raw_log_emission_posterior"
     behavior_latent_state: str = "compact_destination_well"
@@ -80,6 +100,27 @@ class ReplaySpatialManifest:
             raise ValueError("dataset_sha256 must be a lowercase SHA-256 digest")
         for value, name in (
             (
+                self.dataset_manifest_file_sha256,
+                "dataset_manifest_file_sha256",
+            ),
+            (
+                self.dataset_verifier_report_sha256,
+                "dataset_verifier_report_sha256",
+            ),
+            (
+                self.dataset_verified_file_records_sha256,
+                "dataset_verified_file_records_sha256",
+            ),
+            (
+                self.route_manifest_file_sha256,
+                "route_manifest_file_sha256",
+            ),
+            (self.route_parameters_sha256, "route_parameters_sha256"),
+            (self.route_segments_sha256, "route_segments_sha256"),
+            (self.route_points_sha256, "route_points_sha256"),
+            (self.cohort_sha256, "cohort_sha256"),
+            (self.event_audit_sha256, "event_audit_sha256"),
+            (
                 self.event_selection_parameters_sha256,
                 "event_selection_parameters_sha256",
             ),
@@ -91,6 +132,41 @@ class ReplaySpatialManifest:
         ):
             if _SHA256_PATTERN.fullmatch(value) is None:
                 raise ValueError(f"{name} must be a lowercase SHA-256 digest")
+        if _COMMIT_PATTERN.fullmatch(self.route_producer_commit) is None:
+            raise ValueError(
+                "route_producer_commit must be a lowercase 40-character commit SHA"
+            )
+        if not self.route_producer_clean_worktree:
+            raise ValueError("route producer must run from a clean committed worktree")
+        if self.dataset_verifier_report_file != (
+            "replay_spatial_dataset_verification.json"
+        ):
+            raise ValueError("dataset verifier report file is not the frozen name")
+        if (
+            self.dataset_verified_file_count < 1
+            or self.dataset_verified_total_bytes < 1
+            or self.dataset_verified_session_count < 1
+        ):
+            raise ValueError("dataset verification counts must be positive")
+        report = {
+            "schema_version": "hipporeplayimm.pf-dataset-verification.v1",
+            "status": "pass",
+            "dataset_sha256": self.dataset_sha256,
+            "dataset_manifest_file_sha256": self.dataset_manifest_file_sha256,
+            "verified_file_count": self.dataset_verified_file_count,
+            "verified_total_bytes": self.dataset_verified_total_bytes,
+            "verified_session_count": self.dataset_verified_session_count,
+            "verified_file_records_sha256": (
+                self.dataset_verified_file_records_sha256
+            ),
+            "missing_files": [],
+            "extra_files": [],
+        }
+        report_sha256 = hashlib.sha256(
+            (json.dumps(report, indent=2, sort_keys=True) + "\n").encode("utf-8")
+        ).hexdigest()
+        if report_sha256 != self.dataset_verifier_report_sha256:
+            raise ValueError("dataset verifier report digest does not match its content")
         if self.candidate_evidence_cutoff != "strict_pre_replay":
             raise ValueError("candidate evidence must be frozen strictly before replay")
         if self.likelihood_domain != "max_shifted_log_emission_plus_offset":
@@ -104,6 +180,14 @@ class ReplaySpatialManifest:
             raise ValueError("decoder point spread must use the frozen prefix holdout")
         if self.event_selection_schedule != "lfp_raw_peak_power_top_n_per_session":
             raise ValueError("event selection must use raw LFP power only")
+        if self.event_selection_time_scope != "full_session_offline_rank":
+            raise ValueError("event selection time scope must be the frozen offline rank")
+        if self.dataset_verification_schedule != (
+            "locked_full_tree_path_size_sha256_no_extra_files"
+        ):
+            raise ValueError("dataset verification must check the entire locked tree")
+        if self.route_smoothing_scope != "within_completed_fill_interval":
+            raise ValueError("route smoothing must not cross completed-route boundaries")
         if self.spatial_coordinate_units != "cm":
             raise ValueError("spatial coordinates and point spread must use cm")
         if self.well_mass_source != "raw_log_emission_posterior":

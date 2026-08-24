@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import replace
+import hashlib
+import json
 
 import numpy as np
 import pytest
@@ -25,6 +27,7 @@ from bayesian_ach.replay_spatial import (
     SpatialReplayDataset,
     build_signed_revision_field,
     compare_spatial_replay_candidates,
+    subset_spatial_replay_dataset,
 )
 
 
@@ -36,7 +39,7 @@ def _softmax(values: np.ndarray) -> np.ndarray:
 
 def _dataset(*, signal: bool = True, seed: int = 17) -> SpatialReplayDataset:
     rng = np.random.default_rng(seed)
-    n_rats = 4
+    n_rats = 6
     events_per_rat = 8
     n_events = n_rats * events_per_rat
     n_time = 5
@@ -130,9 +133,26 @@ def _passing_gate() -> SpatialRecoveryGate:
         )
         for split_unit in ("leave_one_rat_out", "leave_one_session_out")
     )
+    null_records = tuple(
+        SpatialRecoveryRecord(
+            generator="null",
+            split_unit=split_unit,
+            selected_candidate="td_error",
+            selected_margin=0.0,
+            selected_margin_lower=-0.1,
+            decisive=False,
+            n_held_out_groups=6,
+            spatial_sigma_multiplier=1.0,
+        )
+        for split_unit in ("leave_one_rat_out", "leave_one_session_out")
+    )
     return SpatialRecoveryGate(
         pure_records=pure,
         mixture_records=mixture,
+        null_records=null_records,
+        source_event_count=1,
+        common_event_count=1,
+        excluded_event_ids=(),
         required_mixtures=("smoothing_revision+td_error",),
         required_sigma_multipliers=(1.0,),
     )
@@ -144,6 +164,53 @@ def _config() -> SpatialComparisonConfig:
         bootstrap_replicates=1000,
         maximum_field_correlation=0.999,
         seed=11,
+    )
+
+
+def _manifest() -> ReplaySpatialManifest:
+    dataset_sha256 = "2" * 64
+    dataset_manifest_file_sha256 = "6" * 64
+    file_records_sha256 = "7" * 64
+    report = {
+        "schema_version": "hipporeplayimm.pf-dataset-verification.v1",
+        "status": "pass",
+        "dataset_sha256": dataset_sha256,
+        "dataset_manifest_file_sha256": dataset_manifest_file_sha256,
+        "verified_file_count": 124,
+        "verified_total_bytes": 425_953_051,
+        "verified_session_count": 8,
+        "verified_file_records_sha256": file_records_sha256,
+        "missing_files": [],
+        "extra_files": [],
+    }
+    report_sha256 = hashlib.sha256(
+        (json.dumps(report, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    ).hexdigest()
+    return ReplaySpatialManifest(
+        producer_repository="IPS-Stuttgart/HippoReplayDynamics",
+        producer_commit="1" * 40,
+        dataset_id="PfeifferFoster-open-field-2013",
+        dataset_sha256=dataset_sha256,
+        dataset_manifest_file_sha256=dataset_manifest_file_sha256,
+        dataset_verifier_report_file=(
+            "replay_spatial_dataset_verification.json"
+        ),
+        dataset_verifier_report_sha256=report_sha256,
+        dataset_verified_file_count=124,
+        dataset_verified_total_bytes=425_953_051,
+        dataset_verified_session_count=8,
+        dataset_verified_file_records_sha256=file_records_sha256,
+        route_manifest_file_sha256="8" * 64,
+        route_producer_commit="9" * 40,
+        route_producer_clean_worktree=True,
+        route_parameters_sha256="a" * 64,
+        route_segments_sha256="b" * 64,
+        route_points_sha256="c" * 64,
+        cohort_sha256="d" * 64,
+        event_audit_sha256="e" * 64,
+        event_selection_parameters_sha256="3" * 64,
+        behavior_field_parameters_sha256="4" * 64,
+        decoder_parameters_sha256="5" * 64,
     )
 
 
@@ -233,10 +300,34 @@ def test_loro_raw_emission_score_recovers_revision_only_with_gate() -> None:
         for contrast in result.target_contrasts
     )
     assert result.target_candidate == "smoothing_revision"
+    assert all(
+        contrast.exact_one_sided_sign_flip_p <= 0.05
+        for contrast in result.target_contrasts
+    )
     assert result.status == "identified"
-    assert result.rat_ids == ("Rat0", "Rat1", "Rat2", "Rat3")
-    assert result.rat_scores.shape == (4, len(SPATIAL_CANDIDATE_NAMES) + 1)
+    assert result.rat_ids == ("Rat0", "Rat1", "Rat2", "Rat3", "Rat4", "Rat5")
+    assert result.rat_scores.shape == (6, len(SPATIAL_CANDIDATE_NAMES) + 1)
     assert all(fold.n_sessions == 2 for fold in result.folds)
+
+
+def test_four_rats_can_never_identify_at_95_percent() -> None:
+    dataset = _dataset(signal=True)
+    selected = np.asarray(dataset.rat_ids, dtype=str) < "Rat4"
+    four_rats = subset_spatial_replay_dataset(dataset, selected)
+    result = compare_spatial_replay_candidates(
+        four_rats,
+        _config(),
+        recovery_gate=_passing_gate(),
+    )
+
+    assert result.winner == "smoothing_revision"
+    assert result.status == "abstain"
+    assert "too_few_independent_rats" in result.abstention_reasons
+    assert "animal_sign_flip_resolution_insufficient" in result.abstention_reasons
+    assert all(
+        contrast.exact_one_sided_sign_flip_p >= 1.0 / 16.0
+        for contrast in result.target_contrasts
+    )
 
 
 def test_candidate_differences_are_invariant_to_log_emission_offsets() -> None:
@@ -314,6 +405,35 @@ def test_recovery_is_computed_from_loao_and_loso_emission_injections() -> None:
     }
     assert all(record.n_held_out_groups >= 4 for record in gate.pure_records)
     assert all(np.isfinite(record.selected_margin) for record in gate.pure_records)
+    assert len(gate.null_records) == 2
+    assert all(record.generator == "null" for record in gate.null_records)
+    assert all(not record.decisive for record in gate.null_records)
+    assert gate.source_event_count == dataset.n_events
+    assert gate.common_event_count == dataset.n_events
+    assert gate.excluded_event_ids == ()
+
+
+def test_recovery_subsets_to_exact_common_cohort_and_reports_exclusions() -> None:
+    dataset = _dataset(signal=False)
+    available = np.asarray(dataset.candidate_available).copy()
+    available[0, 0] = False
+    incomplete = replace(dataset, candidate_available=available)
+    gate = run_spatial_recovery_checks(
+        incomplete,
+        _config(),
+        SpatialInjectionRecoveryConfig(
+            injection_temperature=4.0,
+            spatial_sigma_multipliers=(1.0,),
+            emission_noise_sd_nats=0.0,
+            mixtures=(("smoothing_revision", "td_error"),),
+            seed=31,
+        ),
+    )
+
+    assert gate.source_event_count == dataset.n_events
+    assert gate.common_event_count == dataset.n_events - 1
+    assert gate.excluded_event_ids == (dataset.event_ids[0],)
+    assert all(np.isfinite(record.selected_margin) for record in gate.pure_records)
 
 
 def test_decisive_td_win_cannot_pass_as_mixture_abstention() -> None:
@@ -349,15 +469,7 @@ def test_predictor_and_later_outcome_artifacts_are_separate_and_hash_bound(
     tmp_path,
 ) -> None:
     dataset = _dataset(signal=True)
-    manifest = ReplaySpatialManifest(
-        producer_repository="IPS-Stuttgart/HippoReplayDynamics",
-        producer_commit="1" * 40,
-        dataset_id="PfeifferFoster-open-field-2013",
-        dataset_sha256="2" * 64,
-        event_selection_parameters_sha256="3" * 64,
-        behavior_field_parameters_sha256="4" * 64,
-        decoder_parameters_sha256="5" * 64,
-    )
+    manifest = _manifest()
 
     frozen = write_spatial_predictor_artifact(tmp_path / "predictors", dataset, manifest)
     loaded = load_spatial_predictor_artifact(tmp_path / "predictors")
@@ -403,15 +515,7 @@ def test_predictor_and_later_outcome_artifacts_are_separate_and_hash_bound(
 
 
 def test_manifest_rejects_noncausal_selection_or_dirty_producer() -> None:
-    manifest = ReplaySpatialManifest(
-        producer_repository="IPS-Stuttgart/HippoReplayDynamics",
-        producer_commit="1" * 40,
-        dataset_id="PfeifferFoster-open-field-2013",
-        dataset_sha256="2" * 64,
-        event_selection_parameters_sha256="3" * 64,
-        behavior_field_parameters_sha256="4" * 64,
-        decoder_parameters_sha256="5" * 64,
-    )
+    manifest = _manifest()
     manifest.validate()
 
     with pytest.raises(ValueError, match="raw LFP"):
@@ -425,15 +529,7 @@ def test_manifest_rejects_noncausal_selection_or_dirty_producer() -> None:
 
 def test_predictor_hash_tampering_is_detected(tmp_path) -> None:
     dataset = _dataset()
-    manifest = ReplaySpatialManifest(
-        producer_repository="IPS-Stuttgart/HippoReplayDynamics",
-        producer_commit="a" * 40,
-        dataset_id="PfeifferFoster-open-field-2013",
-        dataset_sha256="b" * 64,
-        event_selection_parameters_sha256="c" * 64,
-        behavior_field_parameters_sha256="d" * 64,
-        decoder_parameters_sha256="e" * 64,
-    )
+    manifest = _manifest()
     directory = tmp_path / "predictors"
     write_spatial_predictor_artifact(directory, dataset, manifest)
     with (directory / "replay_spatial_predictors.npz").open("ab") as handle:

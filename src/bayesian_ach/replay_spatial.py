@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Final
+from dataclasses import dataclass, replace
+from typing import Any, Final
 
 import numpy as np
 from numpy.typing import ArrayLike, NDArray
@@ -361,7 +361,7 @@ class SpatialComparisonConfig:
     """Predeclared grouped scoring and abstention thresholds."""
 
     temperatures: tuple[float, ...] = (0.0, 0.25, 0.5, 1.0, 2.0, 4.0, 8.0)
-    minimum_rats: int = 3
+    minimum_rats: int = 5
     bootstrap_replicates: int = 5000
     maximum_field_correlation: float = 0.98
     simultaneous_confidence_level: float = 0.95
@@ -411,6 +411,10 @@ class SpatialRecoveryGate:
 
     pure_records: tuple[SpatialRecoveryRecord, ...]
     mixture_records: tuple[SpatialRecoveryRecord, ...]
+    null_records: tuple[SpatialRecoveryRecord, ...]
+    source_event_count: int
+    common_event_count: int
+    excluded_event_ids: tuple[str, ...]
     required_mixtures: tuple[str, ...] = (
         "smoothing_revision+td_error",
         "smoothing_revision+prospective",
@@ -446,6 +450,13 @@ class SpatialRecoveryGate:
                 )
             ):
                 return False
+        if (
+            self.source_event_count < self.common_event_count
+            or self.common_event_count < 1
+            or self.source_event_count - self.common_event_count
+            != len(self.excluded_event_ids)
+        ):
+            return False
         for mixture in self.required_mixtures:
             matches = [
                 record
@@ -462,6 +473,17 @@ class SpatialRecoveryGate:
                 or any(record.decisive for record in matches)
             ):
                 return False
+        null_cells = {
+            (record.split_unit, float(record.spatial_sigma_multiplier))
+            for record in self.null_records
+            if record.generator == NULL_CANDIDATE_NAME
+        }
+        if (
+            null_cells != required_cells
+            or len(self.null_records) != len(required_cells)
+            or any(record.decisive for record in self.null_records)
+        ):
+            return False
         return True
 
 
@@ -482,6 +504,7 @@ class SpatialTargetContrast:
     alternative: str
     mean_margin: float
     simultaneous_lower_bound: float
+    exact_one_sided_sign_flip_p: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -511,6 +534,72 @@ class SpatialReplayComparison:
     abstention_reasons: tuple[str, ...]
 
 
+def subset_spatial_replay_dataset(
+    dataset: SpatialReplayDataset,
+    selected: ArrayLike,
+) -> SpatialReplayDataset:
+    """Return an auditable event subset while preserving original identifiers."""
+
+    dataset.validate()
+    mask = np.asarray(selected)
+    if mask.dtype != np.bool_ or mask.shape != (dataset.n_events,):
+        raise ValueError("selected must be a boolean vector with one value per event")
+    if not np.any(mask):
+        raise ValueError("selected must retain at least one event")
+
+    def take(values: ArrayLike) -> NDArray[Any]:
+        return np.asarray(values)[mask]
+
+    subset = replace(
+        dataset,
+        event_ids=tuple(
+            event_id
+            for event_id, keep in zip(dataset.event_ids, mask, strict=True)
+            if bool(keep)
+        ),
+        rat_ids=take(dataset.rat_ids),
+        session_ids=take(dataset.session_ids),
+        event_start_s=take(dataset.event_start_s),
+        event_end_s=take(dataset.event_end_s),
+        history_cutoff_s=take(dataset.history_cutoff_s),
+        decoder_training_cutoff_s=take(dataset.decoder_training_cutoff_s),
+        field_available_s=take(dataset.field_available_s),
+        log_emissions=take(dataset.log_emissions),
+        log_emission_offsets=take(dataset.log_emission_offsets),
+        time_mask=take(dataset.time_mask),
+        active_spatial_mask=take(dataset.active_spatial_mask),
+        spatial_coordinates=take(dataset.spatial_coordinates),
+        decoder_point_spread_cm=take(dataset.decoder_point_spread_cm),
+        nuisance_base=take(dataset.nuisance_base),
+        candidate_fields=take(dataset.candidate_fields),
+        candidate_available=take(dataset.candidate_available),
+        well_masses=(
+            None if dataset.well_masses is None else take(dataset.well_masses)
+        ),
+    )
+    subset.validate()
+    return subset
+
+
+def _exact_one_sided_sign_flip_p(values: NDArray[np.float64]) -> float:
+    """Exact randomization p for a positive equal-animal mean contrast."""
+
+    differences = np.asarray(values, dtype=float)
+    if (
+        differences.ndim != 1
+        or differences.size < 1
+        or not np.all(np.isfinite(differences))
+    ):
+        return float("nan")
+    observed = float(np.mean(differences))
+    n_animals = int(differences.size)
+    pattern_ids = np.arange(1 << n_animals, dtype=np.uint64)[:, None]
+    bit_ids = np.arange(n_animals, dtype=np.uint64)[None, :]
+    signs = np.where(((pattern_ids >> bit_ids) & 1) == 1, 1.0, -1.0)
+    null_statistics = np.mean(signs * differences[None, :], axis=1)
+    return float(np.mean(null_statistics >= observed - 1e-15))
+
+
 def _normalized_base(dataset: SpatialReplayDataset) -> NDArray[np.float64]:
     base = np.asarray(dataset.nuisance_base, dtype=float).copy()
     base /= base.sum(axis=1, keepdims=True)
@@ -530,6 +619,19 @@ def _standardized_fields(
     standardized = centered / scale[:, :, None]
     standardized[~np.broadcast_to(dataset.active_spatial_mask[:, None, :], fields.shape)] = 0.0
     return standardized, usable
+
+
+def spatial_common_candidate_mask(
+    dataset: SpatialReplayDataset,
+) -> NDArray[np.bool_]:
+    """Identify the predeclared all-candidate complete-case event cohort."""
+
+    dataset.validate()
+    base = _normalized_base(dataset)
+    _, field_usable = _standardized_fields(dataset, base)
+    common = np.all(np.asarray(dataset.candidate_available, dtype=bool), axis=1)
+    common &= np.all(field_usable, axis=1)
+    return np.asarray(common, dtype=np.bool_)
 
 
 def _event_scores_for_temperature(
@@ -753,6 +855,9 @@ def compare_spatial_replay_candidates(
                 alternative=all_names[alternative_index],
                 mean_margin=float(observed_margins[position]),
                 simultaneous_lower_bound=float(simultaneous_lower[position]),
+                exact_one_sided_sign_flip_p=_exact_one_sided_sign_flip_p(
+                    paired[:, position]
+                ),
             )
             for position, alternative_index in enumerate(alternative_indices)
         )
@@ -767,6 +872,7 @@ def compare_spatial_replay_candidates(
                 alternative=all_names[index],
                 mean_margin=float("nan"),
                 simultaneous_lower_bound=float("nan"),
+                exact_one_sided_sign_flip_p=float("nan"),
             )
             for index in alternative_indices
         )
@@ -791,6 +897,16 @@ def compare_spatial_replay_candidates(
     )
     if np.any(~np.isfinite(target_lower)) or np.any(target_lower <= 0.0):
         reasons.append("smoothing_revision_contrast_uncertain")
+    target_sign_flip_p = np.asarray(
+        [contrast.exact_one_sided_sign_flip_p for contrast in target_contrasts],
+        dtype=float,
+    )
+    alpha = 1.0 - config.simultaneous_confidence_level
+    if (
+        np.any(~np.isfinite(target_sign_flip_p))
+        or np.any(target_sign_flip_p > alpha + 1e-15)
+    ):
+        reasons.append("animal_sign_flip_resolution_insufficient")
     status = "identified" if not reasons else "abstain"
 
     return SpatialReplayComparison(
@@ -826,4 +942,6 @@ __all__ = [
     "SpatialReplayDataset",
     "build_signed_revision_field",
     "compare_spatial_replay_candidates",
+    "spatial_common_candidate_mask",
+    "subset_spatial_replay_dataset",
 ]

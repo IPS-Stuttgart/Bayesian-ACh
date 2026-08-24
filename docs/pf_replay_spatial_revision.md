@@ -67,8 +67,15 @@ later outcome time > f_e
 
 The event cohort must also be independent of decoded spatial content. The
 claim-bearing producer reselects RUN ripples by raw LFP peak power under a
-predeclared top-N-per-session schedule. The earlier 160-event table selected
+predeclared top-N-per-session schedule. Ranking is performed over the full
+session, so this is an offline conditional-content sample—not an online causal
+claim about replay-event incidence. The earlier 160-event table selected
 downstream of full-session decoder evidence is not an admissible primary cohort.
+Every raw dataset path, size, and SHA-256 is checked against the canonical lock;
+missing, changed, and unlocked extra files fail before export. Historical route
+tables must be regenerated from a clean commit and smoothed independently
+within each completed fill interval, preventing later intervals from affecting
+a completed route boundary.
 
 The decoder must be refitted at each event cutoff (or use a demonstrably
 equivalent prefix cache). The existing producer's one-time, full-session RUN
@@ -136,11 +143,16 @@ For inference, the software forms paired rat-level contrasts between
 `smoothing_revision` and every finite alternative, including prospective,
 recency, posterior content, TD error, and null. A joint animal bootstrap uses
 the maximum shortfall over all contrasts to produce simultaneous one-sided
-lower bounds. Smoothing is identified only if every simultaneous lower bound is
-strictly positive. The descriptive winner-minus-runner interval never controls
+lower bounds. Each rat-level contrast also receives an exact one-sided sign-flip
+test. Smoothing is identified only if every simultaneous lower bound is
+strictly positive and every exact p value is at most the prespecified alpha.
+Consequently four rats can never support a 95% animal-level identification
+claim (the smallest attainable one-sided p value is 1/16). The descriptive winner-minus-runner interval never controls
 the claim.
 
-Recovery is executable rather than asserted. The recovery runner draws latent
+Recovery is executable rather than asserted. It first subsets to the exact
+all-candidate complete-case cohort, retaining original event IDs and reporting
+every exclusion. The recovery runner draws latent
 spatial bins from each frozen candidate prior, emits Gaussian raw spatial
 log-likelihood rows around those bins, and sends those rows through the full
 temperature-selection and scoring code. Coordinates and widths are in
@@ -148,6 +160,9 @@ centimeters. Gaussian width is not an arbitrary grid constant: it is the
 event-specific held-out RUN decoder point-spread/error multiplied by the
 prespecified stress range 0.5, 1.0, and 2.0.
 
+This is post-decoder scoring recovery at empirical decoder resolution; it is
+not end-to-end spike/place-field decoder recovery. A nuisance-base/null
+injection is a required negative control: no non-null candidate may be decisive.
 Every pure generator must be recovered with fixed-generator simultaneous
 contrasts under both leave-one-rat-out and leave-one-session-out calibration at
 every width. Registered 50/50 mixtures pair `smoothing_revision` with TD error,
@@ -160,7 +175,8 @@ booleans.
 The software computes scores even when it must abstain. It reports
 `status="identified"` only if all of the following hold:
 
-- the common complete-case cohort spans at least three rats;
+- the common complete-case cohort spans at least five rats and has adequate
+  exact animal sign-flip resolution;
 - computed pure-candidate injection recovery succeeds under both split schemes;
 - the registered 50/50 mixture remains ambiguous;
 - candidate-field collinearity remains below the frozen threshold; and
@@ -179,10 +195,33 @@ Schema `bayesian-ach.replay-spatial.v2` writes:
   availability times, optional posterior-derived well masses, and
   rat/session/event identifiers;
 - `replay_spatial_manifest.json`: clean producer commit, locked-dataset
-  digest, transition/trace convention, raw-LFP event-selection schedule,
+  digest and deterministic full-tree verification report, clean route-producer
+  commit/config/table hashes, ordered cohort and event-audit hashes,
+  transition/trace convention, offline raw-LFP event-selection schedule,
   pre-event temporal-holdout point-spread schedule, selection/behavior/decoder
   parameter digests, and the predictor SHA-256 digest.
 
 Schema `bayesian-ach.replay-later-outcome.v1` writes separate outcome NPZ and
 manifest files bound to the already frozen predictor digest. Loading uses
 `allow_pickle=False`; both files are hash checked before analysis.
+
+
+## Frozen real-data runner
+
+Run from a clean Bayesian-ACh worktree and write outside that worktree:
+
+```bash
+env PYTHONPATH=src python scripts/run_pf_replay_spatial_analysis.py \
+  --predictor-dir /path/to/pf-replay-spatial-contract \
+  --output-dir /path/to/pf-replay-spatial-analysis
+```
+
+The claim-bearing runner fixes temperatures to
+`(0, 0.25, 0.5, 1, 2, 4, 8)`, five minimum independent rats, 5,000 animal
+bootstrap replicates, 95% simultaneous coverage, correlation threshold 0.98,
+and seed 7. Recovery fixes injection temperature 4, empirical point-spread
+multipliers `(0.5, 1, 2)`, 0.02-nat emission noise, seed 701, LOAO/LOSO pure
+generators, the four registered smoothing mixtures, and a nuisance-base null
+negative control. The analysis manifest binds the clean consumer commit,
+predictor/producer/dataset/route hashes, frozen configs, exclusion IDs, all
+compact output hashes, recovery status, and final abstention reasons.

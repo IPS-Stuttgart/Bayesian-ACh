@@ -16,12 +16,14 @@ from bayesian_ach.replay_spatial import (
     SpatialReplayComparison,
     SpatialReplayDataset,
     compare_spatial_replay_candidates,
+    spatial_common_candidate_mask,
+    subset_spatial_replay_dataset,
 )
 
 
 @dataclass(frozen=True, slots=True)
 class SpatialInjectionRecoveryConfig:
-    """Frozen settings for end-to-end raw-emission recovery checks."""
+    """Frozen settings for post-decoder raw-emission scoring recovery."""
 
     injection_temperature: float = 4.0
     spatial_sigma_multipliers: tuple[float, ...] = (0.5, 1.0, 2.0)
@@ -100,8 +102,11 @@ def inject_spatial_replay_emissions(
     dataset.validate()
     config = SpatialInjectionRecoveryConfig() if config is None else config
     config.validate()
-    if len(generators) not in (1, 2):
-        raise ValueError("generators must contain one candidate or a 50/50 pair")
+    if len(generators) not in (0, 1, 2):
+        raise ValueError(
+            "generators must be empty for the nuisance-base null, "
+            "one candidate, or a 50/50 pair"
+        )
     if any(name not in dataset.candidate_names for name in generators):
         raise ValueError("all generators must be registered candidates")
     multiplier = float(spatial_sigma_multiplier)
@@ -120,16 +125,20 @@ def inject_spatial_replay_emissions(
         active_indices = np.flatnonzero(active)
         coordinates = dataset.spatial_coordinates[event_index, active]
         for time_index in np.flatnonzero(dataset.time_mask[event_index]):
-            if len(generator_indices) == 1:
-                generator_position = 0
+            candidate_index: int | None
+            if len(generator_indices) == 0:
+                candidate_index = None
+            elif len(generator_indices) == 1:
+                candidate_index = generator_indices[0]
             else:
                 generator_position = (event_index + int(time_index)) % 2
-            candidate_index = generator_indices[generator_position]
+                candidate_index = generator_indices[generator_position]
             log_prior = np.log(base[event_index, active])
-            log_prior += (
-                config.injection_temperature
-                * standardized[event_index, candidate_index, active]
-            )
+            if candidate_index is not None:
+                log_prior += (
+                    config.injection_temperature
+                    * standardized[event_index, candidate_index, active]
+                )
             probabilities = np.exp(log_prior - logsumexp(log_prior))
             sampled_position = int(rng.choice(len(active_indices), p=probabilities))
             squared_distance = np.sum(
@@ -221,9 +230,17 @@ def run_spatial_recovery_checks(
     comparison_config: SpatialComparisonConfig | None = None,
     injection_config: SpatialInjectionRecoveryConfig | None = None,
 ) -> SpatialRecoveryGate:
-    """Compute LOAO/LOSO pure recovery and registered-mixture abstention."""
+    """Compute post-decoder LOAO/LOSO scoring recovery on the common cohort.\n\n    This tests Gaussian raw-emission score discrimination at the empirical\n    decoder point spread. It is not end-to-end spike/place-field decoder\n    recovery. Original event IDs and exclusions are retained in the gate.\n    """
 
     dataset.validate()
+    source_event_ids = tuple(dataset.event_ids)
+    common_mask = spatial_common_candidate_mask(dataset)
+    excluded_event_ids = tuple(
+        event_id
+        for event_id, keep in zip(source_event_ids, common_mask, strict=True)
+        if not bool(keep)
+    )
+    dataset = subset_spatial_replay_dataset(dataset, common_mask)
     comparison_config = (
         SpatialComparisonConfig()
         if comparison_config is None
@@ -239,6 +256,7 @@ def run_spatial_recovery_checks(
 
     pure_records: list[SpatialRecoveryRecord] = []
     mixture_records: list[SpatialRecoveryRecord] = []
+    null_records: list[SpatialRecoveryRecord] = []
     split_units = ("leave_one_rat_out", "leave_one_session_out")
     for generator_index, generator in enumerate(dataset.candidate_names):
         for multiplier_index, multiplier in enumerate(
@@ -345,9 +363,63 @@ def run_spatial_recovery_checks(
                     )
                 )
 
+    for multiplier_index, multiplier in enumerate(
+        injection_config.spatial_sigma_multipliers
+    ):
+        injected = inject_spatial_replay_emissions(
+            dataset,
+            (),
+            injection_config,
+            spatial_sigma_multiplier=float(multiplier),
+            seed=injection_config.seed + 900_001 + 101 * multiplier_index,
+        )
+        for split_index, split_unit in enumerate(split_units):
+            result = _comparison_for_split(
+                injected,
+                comparison_config,
+                split_unit,
+            )
+            summaries = [
+                (
+                    candidate,
+                    *_fixed_candidate_contrast(
+                        result,
+                        candidate,
+                        comparison_config,
+                        seed=(
+                            injection_config.seed
+                            + 900_001
+                            + 101 * multiplier_index
+                            + split_index
+                            + 1_000_003 * candidate_index
+                        ),
+                    ),
+                )
+                for candidate_index, candidate in enumerate(
+                    result.candidate_names[:-1]
+                )
+            ]
+            selected = max(summaries, key=lambda values: values[2])
+            null_records.append(
+                SpatialRecoveryRecord(
+                    generator="null",
+                    split_unit=split_unit,
+                    selected_candidate=selected[0],
+                    selected_margin=selected[1],
+                    selected_margin_lower=selected[2],
+                    decisive=any(values[3] for values in summaries),
+                    n_held_out_groups=len(result.rat_ids),
+                    spatial_sigma_multiplier=float(multiplier),
+                )
+            )
+
     return SpatialRecoveryGate(
         pure_records=tuple(pure_records),
         mixture_records=tuple(mixture_records),
+        null_records=tuple(null_records),
+        source_event_count=len(source_event_ids),
+        common_event_count=dataset.n_events,
+        excluded_event_ids=excluded_event_ids,
         required_mixtures=tuple(mixture_names),
         required_sigma_multipliers=tuple(
             float(value) for value in injection_config.spatial_sigma_multipliers
