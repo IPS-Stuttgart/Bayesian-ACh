@@ -1,7 +1,7 @@
 """Reject Markdown math forms that GitHub's sanitizer can mangle.
 
 GitHub supports fenced ``math`` blocks for display math and the backtick-delimited
-inline form ``$`...`$``.  This checker keeps project documentation on those two
+inline form ``$`...`$``. This checker keeps project documentation on those two
 forms and deliberately keeps headings free of math.
 """
 
@@ -26,9 +26,9 @@ def check_file(path: Path) -> list[str]:
     errors: list[str] = []
     in_fence = False
     fence_marker = ""
-    fence_language = ""
 
-    for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+    lines = path.read_text(encoding="utf-8").splitlines()
+    for line_number, line in enumerate(lines, 1):
         stripped = line.lstrip()
 
         if stripped.startswith(("```", "~~~")):
@@ -36,15 +36,16 @@ def check_file(path: Path) -> list[str]:
             if not in_fence:
                 in_fence = True
                 fence_marker = marker
-                fence_language = stripped[3:].strip().split(maxsplit=1)[0] if stripped[3:].strip() else ""
-                if fence_language == "math" and len(line) != len(stripped):
+                info = stripped[3:].strip()
+                language = info.split(maxsplit=1)[0] if info else ""
+                if language == "math" and len(line) != len(stripped):
+                    rel = path.relative_to(ROOT)
                     errors.append(
-                        f"{path.relative_to(ROOT)}:{line_number}: math fences must not be indented"
+                        f"{rel}:{line_number}: math fences must not be indented"
                     )
             elif marker == fence_marker:
                 in_fence = False
                 fence_marker = ""
-                fence_language = ""
             continue
 
         if in_fence:
@@ -55,19 +56,24 @@ def check_file(path: Path) -> list[str]:
         if stripped.startswith("#") and "$" in stripped:
             errors.append(f"{rel}:{line_number}: keep headings free of math")
 
-        for forbidden, description in (
-            (r"\operatorname", r"use standard operators or \mathrm instead of \operatorname"),
+        forbidden_forms = (
+            (
+                r"\operatorname",
+                r"use standard operators or \mathrm instead of \operatorname",
+            ),
             (r"\(", r"use GitHub inline math $`...`$ instead of \(...\)"),
             (r"\)", r"use GitHub inline math $`...`$ instead of \(...\)"),
             (r"\[", r"use fenced math blocks instead of \[...\]"),
             (r"\]", r"use fenced math blocks instead of \[...\]"),
             ("$$", "use fenced ```math blocks instead of $$...$$"),
-        ):
+        )
+        for forbidden, description in forbidden_forms:
             if forbidden in line:
                 errors.append(f"{rel}:{line_number}: {description}")
 
-        # Remove the supported inline delimiters before looking for stray dollars.
-        remainder = line.replace("$`", "").replace("`$", "").replace(r"\$", "")
+        # Remove supported inline delimiters before looking for stray dollars.
+        remainder = line.replace("$`", "").replace("`$", "")
+        remainder = remainder.replace(r"\$", "")
         if "$" in remainder:
             errors.append(
                 f"{rel}:{line_number}: use GitHub sanitizer-safe inline math $`...`$"
