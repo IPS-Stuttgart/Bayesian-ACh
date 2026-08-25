@@ -84,7 +84,9 @@ class ReplaySpatialManifest:
     spatial_coordinate_units: str = "cm"
     well_mass_source: str = "raw_log_emission_posterior"
     behavior_latent_state: str = "compact_destination_well"
-    behavior_observation_schedule: str = "tracked_position_and_well_visits_pre_replay"
+    behavior_observation_schedule: str = (
+        "tracked_position_and_completed_fill_intervals_pre_replay"
+    )
     state_to_spatial_mapping: str = "pre_replay_route_kernel"
     replay_feedback_used: bool = False
     outcomes_in_predictor: bool = False
@@ -214,7 +216,7 @@ class ReplaySpatialManifest:
             raise ValueError("behavioral smoothing must use the compact well state")
         if (
             self.behavior_observation_schedule
-            != "tracked_position_and_well_visits_pre_replay"
+            != "tracked_position_and_completed_fill_intervals_pre_replay"
         ):
             raise ValueError("behavior observation schedule is not the frozen schedule")
         if self.state_to_spatial_mapping != "pre_replay_route_kernel":
