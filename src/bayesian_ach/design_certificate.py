@@ -10,7 +10,6 @@ import numpy as np
 from numpy.typing import NDArray
 from scipy.optimize import Bounds, LinearConstraint, milp
 
-from bayesian_ach.design_geometry import pairwise_residual_matrix
 from bayesian_ach.design_optimizer import optimize_maximin_design
 
 
@@ -346,11 +345,13 @@ def certificate_matches_geometry(
 ) -> bool:
     """Return whether the frozen lower bound matches direct residual geometry."""
 
-    direct = pairwise_residual_matrix(signals, certificate.allocation)
-    off_diagonal = ~np.eye(direct.shape[0], dtype=bool)
+    direct, _ = _pairwise_oracle(
+        np.asarray(signals, dtype=float),
+        certificate.allocation,
+    )
     return math.isclose(
         certificate.lower_bound,
-        float(np.min(direct[off_diagonal])),
+        direct,
         rel_tol=tolerance,
         abs_tol=tolerance,
     )
