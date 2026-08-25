@@ -298,7 +298,9 @@ def _manifest(
         event_audit_sha256=audit_sha256,
         event_selection_parameters_sha256="3" * 64,
         behavior_field_parameters_sha256="4" * 64,
-        decoder_parameters_sha256="5" * 64,
+        decoder_parameters_sha256=(
+            "a79fa8a1f55a964c4367853cc120efc9b742ec4e327c277ede78cfd6a277f20b"
+        ),
     )
 
 def test_signed_revision_field_is_kl_weighted_signed_and_pre_replay() -> None:
@@ -641,6 +643,8 @@ def test_manifest_rejects_noncausal_selection_or_dirty_producer() -> None:
         ).validate()
     with pytest.raises(ValueError, match="clean committed worktree"):
         replace(manifest, producer_clean_worktree=False).validate()
+    with pytest.raises(ValueError, match="120-second point-spread"):
+        replace(manifest, decoder_parameters_sha256="5" * 64).validate()
 
 
 def test_provenance_sidecar_tampering_is_detected(tmp_path) -> None:

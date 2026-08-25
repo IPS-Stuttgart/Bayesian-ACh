@@ -130,6 +130,21 @@ place-field fit violates this rule and cannot produce a claim-bearing artifact.
 A timestamp copied into the manifest is not sufficient: the fitted observations
 must actually end at that timestamp.
 
+Decoder point-spread calibration uses a fixed 120-second interval ending
+strictly before each replay, 100-ms bins, moving RUN samples outside ripples, a
+minimum of 20 valid bins, and the 68th-percentile position error. This is a
+documented design amendment, not a preregistered choice: the initial 60-second
+rule left two of the 160 fixed LFP-selected events with only 17 and 10 valid
+bins. An outcome-blind, score-blind counts preflight over 60, 120, and 180
+seconds found 120 seconds to be the shortest tested global window supporting
+all 160 events (minimum 42 bins). The global window was changed before replay
+scoring; no event was dropped or backfilled. Only valid bins are evaluated, in
+deterministic chunks of at most 32 time bins. The consumer requires decoder
+configuration digest
+`a79fa8a1f55a964c4367853cc120efc9b742ec4e327c277ede78cfd6a277f20b`;
+this binds the fixed window, bin width, support threshold, q68 statistic,
+chunk size, and the unchanged encoder/emission settings.
+
 The compact well state keeps Bayesian-ACh pair arrays small; the PF spatial
 grid is never passed through its dense pair-marginal implementation. Spatial
 traces, if needed, use the sparse Hippo trace. The prospective field uses the

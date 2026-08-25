@@ -28,6 +28,9 @@ HIPPO_TRANSITION_CONVENTION: Final[str] = (
 )
 _SHA256_PATTERN = re.compile(r"^[0-9a-f]{64}$")
 _COMMIT_PATTERN = re.compile(r"^[0-9a-f]{40}$")
+PF_FROZEN_DECODER_PARAMETERS_SHA256: Final[str] = (
+    "a79fa8a1f55a964c4367853cc120efc9b742ec4e327c277ede78cfd6a277f20b"
+)
 
 
 def _sha256(path: Path) -> str:
@@ -135,6 +138,14 @@ class ReplaySpatialManifest:
         ):
             if _SHA256_PATTERN.fullmatch(value) is None:
                 raise ValueError(f"{name} must be a lowercase SHA-256 digest")
+        if (
+            self.decoder_parameters_sha256
+            != PF_FROZEN_DECODER_PARAMETERS_SHA256
+        ):
+            raise ValueError(
+                "decoder_parameters_sha256 does not match the frozen "
+                "120-second point-spread configuration"
+            )
         if _COMMIT_PATTERN.fullmatch(self.route_producer_commit) is None:
             raise ValueError(
                 "route_producer_commit must be a lowercase 40-character commit SHA"
