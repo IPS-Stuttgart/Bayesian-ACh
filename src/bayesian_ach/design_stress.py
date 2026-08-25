@@ -55,7 +55,10 @@ class DesignStressConfig:
         if not self.fixed_budgets and not self.budget_factors:
             raise ValueError("at least one fixed budget or N_eff factor is required")
         if (
-            any(value < len(DESIGN_CANDIDATE_NAMES) + 1 for value in self.fixed_budgets)
+            any(
+                value < len(DESIGN_CANDIDATE_NAMES) + 1
+                for value in self.fixed_budgets
+            )
             or len(set(self.fixed_budgets)) != len(self.fixed_budgets)
         ):
             raise ValueError("fixed_budgets must be unique and exceed candidate count")
