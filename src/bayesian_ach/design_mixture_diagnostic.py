@@ -594,6 +594,7 @@ def _audit_power(
     )
     return enabled_tuple, pair_enabled, out_enabled, null_enabled, rows
 
+
 def _evaluate_pure(
     signals: NDArray[np.float64],
     thresholds: DiagnosticThresholds,
@@ -648,6 +649,7 @@ def _evaluate_null(
     signals: NDArray[np.float64],
     thresholds: DiagnosticThresholds,
     enabled: tuple[bool, ...],
+    audit_enabled: bool,
     *,
     config: MixtureDiagnosticConfig,
 ) -> list[dict[str, Any]]:
@@ -677,6 +679,12 @@ def _evaluate_null(
             "false_pure_call_rate": false_calls / config.evaluation_replicates,
             "wilson_lower": lower,
             "wilson_upper": upper,
+            "contrast_enabled_from_audit": audit_enabled,
+            "claim_status": (
+                "evaluated"
+                if audit_enabled
+                else "mandatory_abstain_underpowered"
+            ),
             "reasons": dict(sorted(reasons.items())),
         }
     ]
@@ -700,6 +708,7 @@ def _evaluate_mixtures(
     indices: NDArray[np.int64],
     thresholds: DiagnosticThresholds,
     enabled: tuple[bool, ...],
+    pair_enabled: dict[tuple[int, int], bool],
     *,
     config: MixtureDiagnosticConfig,
 ) -> list[dict[str, Any]]:
@@ -740,6 +749,12 @@ def _evaluate_mixtures(
                 ),
                 "wilson_lower": lower,
                 "wilson_upper": upper,
+                "contrast_enabled_from_audit": pair_enabled[(first, second)],
+                "claim_status": (
+                    "evaluated"
+                    if pair_enabled[(first, second)]
+                    else "mandatory_abstain_underpowered"
+                ),
                 "reasons": dict(sorted(reasons.items())),
             }
         )
@@ -752,6 +767,7 @@ def _evaluate_out_of_span(
     indices: NDArray[np.int64],
     thresholds: DiagnosticThresholds,
     enabled: tuple[bool, ...],
+    audit_enabled: bool,
     *,
     config: MixtureDiagnosticConfig,
 ) -> list[dict[str, Any]]:
@@ -785,6 +801,12 @@ def _evaluate_out_of_span(
             "false_pure_call_rate": false_calls / config.evaluation_replicates,
             "wilson_lower": lower,
             "wilson_upper": upper,
+            "contrast_enabled_from_audit": audit_enabled,
+            "claim_status": (
+                "evaluated"
+                if audit_enabled
+                else "mandatory_abstain_underpowered"
+            ),
             "full_grid_prestandardization_residual_sd": residual_scale,
             "full_grid_maximum_absolute_mean_inner_product": (
                 maximum_inner_product
