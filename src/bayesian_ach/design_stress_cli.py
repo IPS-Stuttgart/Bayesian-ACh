@@ -28,6 +28,7 @@ _PAYLOAD_FILENAMES = (
     "pure_recovery.csv",
     "null_evaluation.csv",
     "mixture_evaluation.csv",
+    "out_of_span_evaluation.csv",
     "allocations.csv",
 )
 
@@ -183,6 +184,10 @@ def _write_artifact(
     write_rows_csv(
         output / "mixture_evaluation.csv",
         _csv_safe_rows(result.mixture_evaluation),
+    )
+    write_rows_csv(
+        output / "out_of_span_evaluation.csv",
+        _csv_safe_rows(result.out_of_span_evaluation),
     )
     write_rows_csv(output / "allocations.csv", _csv_safe_rows(result.allocations))
 
