@@ -12,6 +12,7 @@ import bayesian_ach.design_stress as stress
 from bayesian_ach.design_stress import DesignStressConfig, run_design_stress
 from bayesian_ach.design_stress_cli import (
     _load_certified_allocation,
+    _load_locked_design_allocation,
     _write_artifact,
 )
 
@@ -63,6 +64,7 @@ def test_threshold_calibration_is_finite_with_minimum_replicates() -> None:
     signals = rng.normal(size=(36, 6))
     signals = (signals - signals.mean(axis=0)) / signals.std(axis=0)
     config = DesignStressConfig(
+        fixed_budgets=(),
         budget_factors=(1.0,),
         calibration_replicates=20,
         calibration_audit_replicates=20,
@@ -145,7 +147,7 @@ def _mock_small_run(monkeypatch: pytest.MonkeyPatch) -> None:
     def evaluations(
         design: str,
         _index: int,
-        factor: float,
+        factor: float | None,
         budget: int,
         *_args: object,
     ) -> tuple[list[dict[str, object]], list[dict[str, object]], list[dict[str, object]]]:
@@ -234,7 +236,8 @@ def test_stress_orchestration_covers_every_design_and_pair(
     _mock_small_run(monkeypatch)
     result = run_design_stress(
         DesignStressConfig(
-            budget_factors=(1.0,),
+            fixed_budgets=(),
+        budget_factors=(1.0,),
             calibration_replicates=20,
             calibration_audit_replicates=20,
             evaluation_replicates=20,
@@ -261,12 +264,55 @@ def test_unused_certified_override_is_rejected(
     with pytest.raises(ValueError, match="did not match"):
         run_design_stress(
             DesignStressConfig(
-                budget_factors=(1.0,),
+                fixed_budgets=(),
+        budget_factors=(1.0,),
                 calibration_replicates=20,
                 calibration_audit_replicates=20,
                 evaluation_replicates=20,
             ),
             allocation_overrides={("maximin_optimized", 9): counts},
+        )
+
+
+def test_locked_primary_allocation_is_hash_bound(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import bayesian_ach.design_stress_cli as cli
+
+    monkeypatch.setattr(
+        cli,
+        "generate_transition_design_grid",
+        lambda: (tuple({"point_id": index} for index in range(4)), None, None),
+    )
+    path = tmp_path / "locked.csv"
+    rows = [
+        {"seed": 7, "design": design, "point_id": point, "count": 1}
+        for design in stress.STRESS_DESIGNS
+        for point in (0, 2)
+    ]
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=("seed", "design", "point_id", "count"),
+        )
+        writer.writeheader()
+        writer.writerows(rows)
+    expected = hashlib.sha256(path.read_bytes()).hexdigest()
+    overrides, provenance = _load_locked_design_allocation(
+        path,
+        expected_sha256=expected,
+        source_code_sha="b" * 40,
+    )
+    assert set(overrides) == {(design, 2) for design in stress.STRESS_DESIGNS}
+    assert provenance["allocation_sha256"] == expected
+    assert provenance["seeds"] == ["7"]
+
+    with pytest.raises(ValueError, match="SHA-256 mismatch"):
+        _load_locked_design_allocation(
+            path,
+            expected_sha256="0" * 64,
+            source_code_sha="b" * 40,
         )
 
 
