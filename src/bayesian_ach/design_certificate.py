@@ -359,7 +359,9 @@ def population_n_eff_index(
     if residual_variance <= 0.0:
         raise ValueError("residual_variance must be positive")
     if effect_size <= 0.0 or noise_std <= 0.0 or target_log_score_gap <= 0.0:
-        raise ValueError("effect_size, noise_std, and target_log_score_gap must be positive")
+        raise ValueError(
+            "effect_size, noise_std, and target_log_score_gap must be positive"
+        )
     per_observation = profiled_gaussian_log_score_gap(
         residual_variance,
         effect_size=effect_size,
