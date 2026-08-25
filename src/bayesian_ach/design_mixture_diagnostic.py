@@ -885,8 +885,16 @@ def run_mixture_diagnostic(
     indices = np.repeat(np.arange(counts.size), counts)
     signals = np.asarray(full_signals[indices], dtype=float)
     thresholds = _calibrate(signals, config=config)
-    enabled, audit_rows = _audit_power(
+    (
+        enabled,
+        pair_enabled,
+        out_enabled,
+        null_enabled,
+        audit_rows,
+    ) = _audit_power(
         signals,
+        full_signals,
+        indices,
         thresholds,
         config=config,
     )
@@ -900,6 +908,7 @@ def run_mixture_diagnostic(
         signals,
         thresholds,
         enabled,
+        null_enabled,
         config=config,
     )
     mixture_rows = _evaluate_mixtures(
@@ -908,6 +917,7 @@ def run_mixture_diagnostic(
         indices,
         thresholds,
         enabled,
+        pair_enabled,
         config=config,
     )
     out_rows = _evaluate_out_of_span(
@@ -916,6 +926,7 @@ def run_mixture_diagnostic(
         indices,
         thresholds,
         enabled,
+        out_enabled,
         config=config,
     )
     geometry_rows = _geometry_rows(
@@ -951,12 +962,30 @@ def run_mixture_diagnostic(
             name: enabled[index]
             for index, name in enumerate(DESIGN_CANDIDATE_NAMES)
         },
+        "pair_power_enabled": {
+            (
+                f"{DESIGN_CANDIDATE_NAMES[first]}+"
+                f"{DESIGN_CANDIDATE_NAMES[second]}"
+            ): pair_enabled[(first, second)]
+            for first, second in _PAIR_INDICES
+        },
+        "null_power_enabled": null_enabled,
+        "out_of_span_power_enabled": out_enabled,
         "minimum_matched_pure_wilson_lower": min(
             float(row["wilson_lower"]) for row in pure_rows
         ),
-        "maximum_mixture_false_pure_wilson_upper": max(
+        "maximum_mixture_false_pure_wilson_upper_descriptive_all": max(
             float(row["wilson_upper"]) for row in mixture_rows
         ),
+        "maximum_enabled_mixture_false_pure_wilson_upper": max(
+            (
+                float(row["wilson_upper"])
+                for row in mixture_rows
+                if bool(row["contrast_enabled_from_audit"])
+            ),
+            default=None,
+        ),
+        "mixture_contrasts_enabled_count": sum(pair_enabled.values()),
         "null_false_pure_wilson_upper": float(null_rows[0]["wilson_upper"]),
         "out_of_span_false_pure_wilson_upper": float(
             out_rows[0]["wilson_upper"]
@@ -972,7 +1001,8 @@ def run_mixture_diagnostic(
             == 3,
             "all_fifteen_pairwise_composites": len(_PAIR_INDICES) == 15,
             "three_fold_cross_fitting": config.folds == 3,
-            "candidate_power_gate_applied": True,
+            "candidate_and_contrast_power_gates_applied": True,
+            "calibration_quantile_rank_fixed_before_evaluation": True,
             "evaluation_not_used_for_thresholds": True,
         },
     }
