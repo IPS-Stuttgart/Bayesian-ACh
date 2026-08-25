@@ -89,6 +89,9 @@ def pairwise_residuals_from_covariance(
                     float(variance[generator])
                     - float(covariance[generator, alternative]) ** 2 / denominator,
                 )
+            else:
+                # A constant alternative adds nothing beyond the fitted intercept.
+                result[generator, alternative] = float(variance[generator])
     return result
 
 
@@ -98,7 +101,7 @@ def profiled_gaussian_log_score_gap(
     effect_size: float,
     noise_std: float,
 ) -> float:
-    """Return the asymptotic gap with candidate-specific residual variance.
+    """Return the population-optimal gap with candidate-specific variance.
 
     The generating candidate has residual variance sigma squared. An
     alternative whose signal leaves projection residual R has profiled
@@ -145,7 +148,7 @@ def diagnostics_from_covariance(
     target_log_score_gap: float = 5.0,
     target_log_bf: float | None = None,
 ) -> DesignDiagnostics:
-    """Summarize identifiability and profiled-Gaussian log-score geometry."""
+    """Summarize identifiability and population-optimal log-score geometry."""
 
     if trial_count < 1:
         return DesignDiagnostics(
