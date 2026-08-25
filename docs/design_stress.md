@@ -73,10 +73,17 @@ counted as false. Pointwise Wilson intervals accompany all reported rates; they
 are not simultaneous confidence bounds over the many scenario cells.
 
 The mixture family is open-set relative to the six pure labels but remains inside
-their linear span. This bounded diagnostic does **not** certify robustness to
-arbitrary or out-of-span misspecification, nonlinear/saturating combinations,
-serial dependence, subject hierarchy, indicator dynamics, nuisance mismatch, or
-invalid sequential histories. Matched-field simulation also cannot diagnose
+their linear span. One additional, deliberately narrow out-of-span probe takes
+`tanh(standardized surprise)`, removes its full-grid OLS projection on an
+intercept and all six standardized candidates, and scales the residual to unit
+standard deviation. Orthogonality is checked numerically on the full grid; a pure
+call is false. This is a diagnostic of one fixed saturation-shaped residual, not
+coverage of a biologically defined misspecification class.
+
+The bounded artifact therefore does **not** certify robustness to arbitrary
+out-of-span misspecification, other nonlinear/saturating combinations, serial
+dependence, subject hierarchy, indicator dynamics, nuisance mismatch, or invalid
+sequential histories. Matched-field simulation also cannot diagnose
 misspecification of the candidate signals themselves.
 
 ## Reproducible artifact
@@ -92,7 +99,7 @@ bayesian-ach-design-stress \
 ```
 
 The command refuses a dirty or mismatched checkout. It writes the configuration,
-thresholds, independent calibration audit, pure/null/mixture evaluations,
+thresholds, independent calibration audit, pure/null/mixture and fixed nonlinear-probe evaluations,
 allocations, a provenance manifest, and `SHA256SUMS.csv`. The manifest binds the
 producer commit, canonical configuration digest, every payload file, and every
 supplied certificate package.
