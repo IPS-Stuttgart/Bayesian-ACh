@@ -1,0 +1,59 @@
+{
+  "all_seed_minima_certified_minus_heuristic_negative": true,
+  "allocation_l1_distance": 100,
+  "certified_support_count": 12,
+  "config": {
+    "effect_size": 1.0,
+    "noise_std": 1.0,
+    "recovery_seed_offset": 100003,
+    "replicates": 200,
+    "seeds": [
+      7,
+      11,
+      19,
+      23,
+      31
+    ],
+    "test_fraction": 0.35
+  },
+  "experiment": "paired_heuristic_vs_certified_n60_recovery_diagnostic",
+  "heuristic_support_count": 15,
+  "input_provenance": [
+    {
+      "budget": 60,
+      "constructor_reproduced": true,
+      "kind": "chronologically_locked_heuristic_maximin_n60",
+      "max_point_fraction": 0.15,
+      "source_bytes": 14450,
+      "source_code_sha": "1b2028929ac6ebc1cce0882f0c22af9918044342",
+      "source_file": "optimal_design_allocation_seed7.csv",
+      "source_repository": "IPS-Stuttgart/Bayesian-ACh",
+      "source_sha256": "a823be49faf6c6cbebf60b11d4b5ca895cf7734d6e9c577ee98f97a5907b69b2"
+    },
+    {
+      "budget": 60,
+      "certificate_allocation_sha256": "694a84107c1ba94f39146a05675def1b5813621fab486d7567f6711510a6fc08",
+      "certificate_code_sha": "e82f48d335fb3f17f843d16bf2442693b6c83eef",
+      "certificate_sha256sums_sha256": "ae337d44c4b5b0ae3bbaaaf1a4981a29bffe7cbb5458104f05d19de13c313938",
+      "certificate_summary_sha256": "7c89b45552568665fd22103feaa301d9d69030bc1a5101b20c3ce6d438b3743c",
+      "certified": true,
+      "kind": "certified_integer_maximin_n60",
+      "lower_bound": 0.25286766545125633,
+      "source_repository": "IPS-Stuttgart/Bayesian-ACh",
+      "upper_bound": 0.2528676654512564
+    }
+  ],
+  "interpretation": "The exact integer certificate optimizes the frozen asymptotic worst-residual objective. This paired finite-sample diagnostic does not select a replacement schedule, establish empirical superiority, or define a physical trial/animal protocol.",
+  "maximum_absolute_cell_change": 9,
+  "minimum_recovery_across_seeds": {
+    "certified_integer_maximin": 0.665,
+    "heuristic_maximin": 0.75
+  },
+  "paired_rng": true,
+  "producer_clean_worktree": true,
+  "producer_commit": "c6dea54d1e8a1b702c212c83535af8a5de3ab3ea",
+  "recovery_seed_rule": "seed + recovery_seed_offset; RNG reset identically for each allocation",
+  "schema_version": 1,
+  "support_overlap_count": 4,
+  "support_union_count": 23
+}
