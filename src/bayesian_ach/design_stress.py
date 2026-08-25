@@ -51,8 +51,15 @@ class DesignStressConfig:
     evaluation_seed: int = 155921
 
     def validate(self) -> None:
-        if not self.budget_factors or any(value <= 0.0 for value in self.budget_factors):
-            raise ValueError("budget_factors must be positive")
+        if (
+            not self.budget_factors
+            or any(
+                not math.isfinite(value) or value <= 0.0
+                for value in self.budget_factors
+            )
+            or len(set(self.budget_factors)) != len(self.budget_factors)
+        ):
+            raise ValueError("budget_factors must be finite, positive, and unique")
         for name, value in (
             ("calibration_replicates", self.calibration_replicates),
             ("calibration_audit_replicates", self.calibration_audit_replicates),
@@ -62,16 +69,27 @@ class DesignStressConfig:
                 raise ValueError(f"{name} must be at least 20")
         if not 0.0 < self.test_fraction < 1.0:
             raise ValueError("test_fraction must lie in (0, 1)")
-        if self.effect_size <= 0.0 or self.noise_std <= 0.0:
-            raise ValueError("effect_size and noise_std must be positive")
-        if self.target_log_score_gap <= 0.0:
-            raise ValueError("target_log_score_gap must be positive")
+        if (
+            not math.isfinite(self.effect_size)
+            or not math.isfinite(self.noise_std)
+            or self.effect_size <= 0.0
+            or self.noise_std <= 0.0
+        ):
+            raise ValueError("effect_size and noise_std must be finite and positive")
+        if (
+            not math.isfinite(self.target_log_score_gap)
+            or self.target_log_score_gap <= 0.0
+        ):
+            raise ValueError("target_log_score_gap must be finite and positive")
         if not 0.0 < self.alpha < 0.5:
             raise ValueError("alpha must lie in (0, 0.5)")
         if not 0.0 < self.confidence_level < 1.0:
             raise ValueError("confidence_level must lie in (0, 1)")
-        if not self.ridge_lambdas or any(value < 0.0 for value in self.ridge_lambdas):
-            raise ValueError("ridge_lambdas must be nonnegative")
+        if not self.ridge_lambdas or any(
+            not math.isfinite(value) or value < 0.0
+            for value in self.ridge_lambdas
+        ):
+            raise ValueError("ridge_lambdas must be finite and nonnegative")
         if self.inner_folds < 2:
             raise ValueError("inner_folds must be at least two")
         if not 0.0 < self.max_point_fraction <= 1.0:
