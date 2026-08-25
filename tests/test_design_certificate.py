@@ -15,6 +15,8 @@ from bayesian_ach.design_certificate import (
     _master_upper_bound,
     certificate_matches_geometry,
     certify_maximin_design,
+    population_n_eff_bracket,
+    population_n_eff_index,
 )
 from bayesian_ach.design_certificate_cli import main
 from bayesian_ach.design_geometry import pairwise_residual_matrix
@@ -102,6 +104,15 @@ def test_continuous_certificate_bounds_integer_optimum() -> None:
     assert continuous.upper_bound - continuous.lower_bound <= 2.0e-7
 
 
+def test_population_n_eff_bracket_certifies_rounding_without_objective_tolerance() -> None:
+    lower = 0.253106863558372
+    upper = 0.2532561178966192
+    assert population_n_eff_index(lower) == 45
+    assert population_n_eff_bracket(lower, upper) == (45, 45)
+    with pytest.raises(ValueError, match="ordered"):
+        population_n_eff_bracket(upper, lower)
+
+
 def test_mip_dual_bound_is_used_even_for_success_status() -> None:
     result = SimpleNamespace(success=True, mip_dual_bound=-0.31)
     assert _master_upper_bound(result, integer=True, incumbent=0.30) == pytest.approx(
@@ -167,7 +178,7 @@ def test_certificate_cli_writes_hash_bound_artifacts(
                 "--output",
                 str(output),
                 "--code-sha",
-                "deadbeef",
+                "d" * 40,
                 "--budget",
                 "2",
                 "--max-point-fraction",
@@ -179,7 +190,8 @@ def test_certificate_cli_writes_hash_bound_artifacts(
     )
     summary = json.loads((output / "certificate_summary.json").read_text())
     assert summary["certified"]
-    assert summary["code_sha"] == "deadbeef"
+    assert summary["code_sha"] == "d" * 40
+    assert summary["population_n_eff"]["index_certified"] is True
     with (output / "SHA256SUMS.csv").open(newline="", encoding="utf-8") as handle:
         manifest = list(csv.DictReader(handle))
     assert {row["file"] for row in manifest} == {
@@ -187,3 +199,26 @@ def test_certificate_cli_writes_hash_bound_artifacts(
         "certified_allocation.csv",
         "cut_trace.csv",
     }
+
+    import bayesian_ach.design_certificate_verify as verifier
+
+    monkeypatch.setattr(
+        verifier,
+        "generate_transition_design_grid",
+        lambda: (rows, signals, signals),
+    )
+    monkeypatch.setattr(
+        verifier,
+        "pairwise_residual_matrix",
+        lambda *_args: np.asarray([[0.0, 0.2], [0.2, 0.0]]),
+    )
+    report = verifier.verify_certificate_package(output)
+    assert report["verified"] is True
+    assert report["population_n_eff_lower"] == report["population_n_eff_upper"]
+
+    (output / "certified_allocation.csv").write_text(
+        "point_id,condition,allocation\n0,a,2\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(ValueError, match="SHA-256 mismatch"):
+        verifier.verify_certificate_package(output)
