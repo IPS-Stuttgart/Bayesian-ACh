@@ -217,9 +217,12 @@ def _summary(
     return {
         "experiment": "prospective_maximin_trial_design",
         "config": {
-            key: value
-            for key, value in asdict(config).items()
-            if key != "target_log_bf"
+            **{
+                key: value
+                for key, value in asdict(config).items()
+                if key not in {"target_log_bf", "target_log_score_gap"}
+            },
+            "target_log_score_gap": config.resolved_target_log_score_gap,
         },
         "grid_config": asdict(grid_config),
         "grid_point_count": len(rows),
