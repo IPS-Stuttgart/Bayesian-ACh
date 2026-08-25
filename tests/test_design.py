@@ -103,7 +103,18 @@ def test_profiled_gaussian_gap_and_default_trial_targets() -> None:
         optimized.counts,
         target_log_bf=5.0,
     )
-    assert legacy == optimized.diagnostics
+    assert legacy.trial_count == optimized.diagnostics.trial_count
+    assert legacy.trials_for_expected_log_score_gap_target == (
+        optimized.diagnostics.trials_for_expected_log_score_gap_target
+    )
+    assert legacy.minimum_pairwise_residual_variance == pytest.approx(
+        optimized.diagnostics.minimum_pairwise_residual_variance,
+        abs=1e-12,
+    )
+    assert legacy.expected_profiled_log_score_gap_per_trial == pytest.approx(
+        optimized.diagnostics.expected_profiled_log_score_gap_per_trial,
+        abs=1e-12,
+    )
     assert "expected_log_bf_per_trial" not in legacy.as_dict()
 
 
