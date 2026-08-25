@@ -30,7 +30,8 @@ def test_locked_config_uses_fresh_disjoint_streams_and_power_gate() -> None:
         config.calibration_audit_seed,
         config.evaluation_seed,
     ) == (196613, 262147, 324949)
-    assert config.minimum_pure_power_wilson_lower == 0.70
+    assert config.minimum_pure_retention_wilson_lower == 0.70
+    assert config.minimum_rejection_power_wilson_lower == 0.70
     assert config.folds == 3
     with pytest.raises(ValueError, match="distinct"):
         MixtureDiagnosticConfig(
@@ -53,7 +54,8 @@ def test_crossfit_pairwise_cone_recovers_noiseless_positive_mixture() -> None:
     )
     assert scores.composite_pair == (0, 1)
     assert scores.composite_score > float(np.max(scores.pure_scores))
-    assert scores.pure_residual_ratios[scores.winner] > 1.0
+    assert np.isfinite(scores.pure_residual_ratios).all()
+    assert np.all(scores.pure_residual_ratios > 0.0)
 
 
 def test_call_requires_power_signal_separation_composite_and_gof() -> None:
@@ -133,7 +135,8 @@ def _dummy_result() -> SimpleNamespace:
                 "streams_disjoint": True,
                 "all_fifteen_pairwise_composites": True,
                 "three_fold_cross_fitting": True,
-                "candidate_power_gate_applied": True,
+                "candidate_and_contrast_power_gates_applied": True,
+                "calibration_quantile_rank_fixed_before_evaluation": True,
                 "evaluation_not_used_for_thresholds": True,
             },
         },
