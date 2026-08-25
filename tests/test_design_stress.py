@@ -9,6 +9,7 @@ import numpy as np
 import pytest
 
 import bayesian_ach.design_stress as stress
+import bayesian_ach.design_stress_cli as stress_cli
 from bayesian_ach.design_stress import DesignStressConfig, run_design_stress
 from bayesian_ach.design_stress_cli import (
     _load_certified_allocation,
@@ -278,10 +279,8 @@ def test_locked_primary_allocation_is_hash_bound(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    import bayesian_ach.design_stress_cli as cli
-
     monkeypatch.setattr(
-        cli,
+        stress_cli,
         "generate_transition_design_grid",
         lambda: (tuple({"point_id": index} for index in range(4)), None, None),
     )
