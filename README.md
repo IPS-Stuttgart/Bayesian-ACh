@@ -12,7 +12,7 @@ and asks a sharper estimation-theoretic question:
 > evidence that the world model itself should change—and can that event signal
 > still be identified after realistic release and measurement dynamics?
 
-Version 0.5 implements six computational layers:
+Version 0.7 implements seven computational layers:
 
 1. conjugate Dirichlet learning for one transition model;
 2. exact HMM filtering over already learned transition contexts;
@@ -25,7 +25,11 @@ Version 0.5 implements six computational layers:
    baselines, and held-out candidate comparison;
 6. causal closed-loop triggering with explicit transport delay, randomized
    latency, local eligibility traces, yoked sham controls, and held-out recovery
-   of the causal stimulation window.
+   of the causal stimulation window;
+7. a versioned, leakage-audited replay artifact contract and a prespecified
+   animal-level comparison of behavioral filtering-to-smoothing revision against
+   online-surprise, content, location, recency, prospective, and TD-error fields,
+   with recovery gates and explicit abstention.
 
 This repository is a computational hypothesis-testing project. It does **not**
 claim that any candidate has already been established as the biological ACh
@@ -307,10 +311,13 @@ whether the discrete timescale posterior is concentrated and stable.
 - **Stage 5 — complete:** causal online triggering, independently calibrated
   delay, randomized timing, yoked active/sham perturbation, eligibility-family
   recovery, and falsification against null and latency-independent effects.
-- **Stage 6 — next:** replay as smoothing-based revision rather than
-  unconstrained internally generated prediction error.
+- **Stage 6 — implemented, claim-gated:** a leakage-audited replay artifact
+  contract, filtering-to-smoothing spatial-field comparison, animal-level
+  simultaneous contrasts, and post-decoder recovery gates. A strict real-data
+  freeze is still required before making any biological replay claim.
 
-See [`docs/closed_loop.md`](docs/closed_loop.md) for causal triggering and
+See [`docs/pf_replay_spatial_revision.md`](docs/pf_replay_spatial_revision.md)
+for the replay contract, claim boundary, and fixed analysis; [`docs/closed_loop.md`](docs/closed_loop.md) for causal triggering and
 eligibility-window recovery, [`docs/measurement_model.md`](docs/measurement_model.md)
 for the ACh measurement derivation,
 [`docs/partial_observation.md`](docs/partial_observation.md) for multisensory
