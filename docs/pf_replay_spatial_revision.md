@@ -35,10 +35,13 @@ Before a real-data run, version 2 fixes the behavioral construction as follows.
   transition as row-stochastic P[source, destination]. A Hippo trace must export
   its exact transpose T[destination, source]; the artifact records the
   convention.
-- Snippet: one completed movement segment of a well-to-well route. Filtering is
-  prefix-only inside the segment; fixed-interval smoothing may use later
-  tracking frames in that same segment. The segment end must be no later than
-  the replay start. Smoothing never crosses the replay event.
+- Snippet: one movement segment from a completed well-to-well fill interval.
+  Filtering is prefix-only inside the segment; fixed-interval smoothing may use
+  later tracking frames in that same segment. Because segmentation, smoothing,
+  and the destination window consume the full source fill interval, the route
+  becomes available only at `interval_end_time_s`. A movement end before the
+  replay is not sufficient when its fill interval ends later. Smoothing never
+  crosses the replay event.
 - Revision field: for historical time h,
   `KL(p_smooth,h || p_filter,h) * (p_smooth,h - p_filter,h)`, projected from
   compact wells onto the replay grid with snippet-specific route kernels learned
@@ -63,8 +66,9 @@ R_e(x) = sum_r KL(q_r || f_r)
 z_e(x) = R_e(x) / sum_x |R_e(x)|
 ```
 
-Here r ranges over eligible routes completed before the ripple, f is the
-destination-well filter at the fixed route prefix, q is the smoother at that
+Here r ranges over routes whose fill intervals end before the ripple,
+`end_r` is that fill-interval end (the evidence-availability and age timestamp),
+f is the destination-well filter at the fixed route prefix, q is the smoother at that
 same historical point, and M maps each well state to the event grid. The
 downstream score base-centers and base-standardizes z, then tunes only a
 nonnegative temperature on training animals. Thus the primary comparison tests
@@ -121,8 +125,9 @@ downstream of full-session decoder evidence is not an admissible primary cohort.
 Every raw dataset path, size, and SHA-256 is checked against the canonical lock;
 missing, changed, and unlocked extra files fail before export. Historical route
 tables must be regenerated from a clean commit and smoothed independently
-within each completed fill interval, preventing later intervals from affecting
-a completed route boundary.
+within each completed fill interval. Event eligibility, behavioral history,
+recency age, route-specific template training, and historical well locations all
+gate on the fill-interval end, not the earlier trimmed movement end.
 
 The decoder must be refitted at each event cutoff (or use a demonstrably
 equivalent prefix cache). The existing producer's one-time, full-session RUN
@@ -142,6 +147,8 @@ scoring; no event was dropped or backfilled. Only valid bins are evaluated, in
 deterministic chunks of at most 32 time bins. The consumer requires decoder
 configuration digest
 `a79fa8a1f55a964c4367853cc120efc9b742ec4e327c277ede78cfd6a277f20b`;
+tracked positions are truncated at the strict event cutoff before speed and
+actual-position interpolation, preventing centered-gradient boundary leakage.
 this binds the fixed window, bin width, support threshold, q68 statistic,
 chunk size, and the unchanged encoder/emission settings.
 
