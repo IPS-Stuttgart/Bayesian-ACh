@@ -9,6 +9,7 @@ from types import SimpleNamespace
 import numpy as np
 import pytest
 
+import bayesian_ach.design_certificate_verify as verifier
 from bayesian_ach.design_certificate import (
     CertifiedDesignConfig,
     MaximinCertificate,
@@ -199,8 +200,6 @@ def test_certificate_cli_writes_hash_bound_artifacts(
         "certified_allocation.csv",
         "cut_trace.csv",
     }
-
-    import bayesian_ach.design_certificate_verify as verifier
 
     monkeypatch.setattr(
         verifier,
