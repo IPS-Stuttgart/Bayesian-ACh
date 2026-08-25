@@ -219,5 +219,5 @@ def test_certificate_cli_writes_hash_bound_artifacts(
         "point_id,condition,allocation\n0,a,2\n",
         encoding="utf-8",
     )
-    with pytest.raises(ValueError, match="SHA-256 mismatch"):
+    with pytest.raises(ValueError, match="byte count mismatch|SHA-256 mismatch"):
         verifier.verify_certificate_package(output)
