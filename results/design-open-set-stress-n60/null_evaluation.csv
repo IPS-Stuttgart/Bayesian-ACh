@@ -1,0 +1,4 @@
+design,budget_schedule,budget_factor,budget,replicates,false_pure_calls,abstentions,false_pure_call_rate,wilson_lower,wilson_upper,abstention_reasons
+coupled_novelty,fixed_budget,,60,200,2,198,0.01,0.0027466581335444384,0.035721761716176796,"{""null_not_rejected"":184,""pure_ambiguity"":14,""pure_call"":2}"
+uniform_factorial,fixed_budget,,60,200,3,197,0.015,0.005114237793258314,0.043165728792690254,"{""null_not_rejected"":195,""pure_ambiguity"":2,""pure_call"":3}"
+maximin_optimized,fixed_budget,,60,200,4,196,0.02,0.007804426416349472,0.05028708690582643,"{""null_not_rejected"":195,""pure_ambiguity"":1,""pure_call"":4}"

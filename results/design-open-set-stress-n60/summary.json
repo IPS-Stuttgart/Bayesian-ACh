@@ -1,0 +1,92 @@
+{
+  "base_n_eff_indices_from_n60_geometry": {
+    "coupled_novelty": 1113,
+    "maximin_optimized": 45,
+    "uniform_factorial": 93
+  },
+  "candidate_names": [
+    "innovation_l2",
+    "surprise",
+    "gain",
+    "update_l2",
+    "information_gain",
+    "change_probability"
+  ],
+  "config": {
+    "allocation_seed": 7,
+    "alpha": 0.05,
+    "budget_factors": [],
+    "calibration_audit_replicates": 100,
+    "calibration_audit_seed": 130363,
+    "calibration_replicates": 100,
+    "confidence_level": 0.95,
+    "effect_size": 1.0,
+    "evaluation_replicates": 200,
+    "evaluation_seed": 155921,
+    "fixed_budgets": [
+      60
+    ],
+    "inner_folds": 3,
+    "max_point_fraction": 0.15,
+    "noise_std": 1.0,
+    "ridge_lambdas": [
+      0.0,
+      0.01,
+      0.1,
+      1.0
+    ],
+    "target_log_score_gap": 5.0,
+    "test_fraction": 0.35,
+    "threshold_seed": 104729
+  },
+  "design_names": [
+    "coupled_novelty",
+    "uniform_factorial",
+    "maximin_optimized"
+  ],
+  "experiment": "post_freeze_design_abstention_sensitivity",
+  "maximum_mixture_false_pure_wilson_upper": 0.8495479907390189,
+  "maximum_null_false_pure_wilson_upper": 0.05028708690582643,
+  "maximum_out_of_span_false_pure_wilson_upper": 0.5833261482812249,
+  "minimum_matched_pure_wilson_lower": 0.013820314340111346,
+  "primary_schedule_chronology": "The equal-N60 allocation and its source commit were frozen in the accepted five-seed benchmark before certificate and stress results; no later certified schedule replaces this primary allocation.",
+  "primary_schedule_provenance": {
+    "allocation_bytes": 14450,
+    "allocation_file": "optimal_design_allocation_seed7.csv",
+    "allocation_file_seed_field_present": false,
+    "allocation_seed": 7,
+    "allocation_seed_source": "explicit_cli_metadata",
+    "allocation_sha256": "a823be49faf6c6cbebf60b11d4b5ca895cf7734d6e9c577ee98f97a5907b69b2",
+    "construction_contract": {
+      "all_three_allocations_reconstructed": true,
+      "allocation_seed": 7,
+      "comparator_cap_semantics": "the maximin cap does not apply to the deterministic coupled-novelty or uniform-factorial constructors",
+      "maximin_max_point_fraction": 0.15,
+      "maximin_maximum_count_by_budget": {
+        "60": 9
+      }
+    },
+    "design_budgets": {
+      "coupled_novelty": 60,
+      "maximin_optimized": 60,
+      "uniform_factorial": 60
+    },
+    "kind": "chronologically_locked_primary_design_allocation",
+    "source_code_sha": "1b2028929ac6ebc1cce0882f0c22af9918044342",
+    "source_repository": "IPS-Stuttgart/Bayesian-ACh"
+  },
+  "schema_version": 1,
+  "scope": "This immutable post-freeze sensitivity probes finite-training plug-in variability, a no-signal null, standardized equal 50/50 in-span mixtures, and one residualized nonlinear probe. It does not establish robustness to arbitrary out-of-span biology, other nonlinear mixtures, serial dependence, sensor dynamics, subject hierarchy, or sequential protocol feasibility. A mixture pure call is counted as false even when it names a constituent.",
+  "technical_gates": {
+    "all_fifteen_mixtures_per_design_budget": true,
+    "all_thresholds_finite": true,
+    "calibration_and_evaluation_seeds_disjoint": true,
+    "chronologically_locked_primary_allocation_verified": true,
+    "one_out_of_span_probe_per_design_budget": true
+  },
+  "threshold_rule": {
+    "adequacy": "all-six train-only-selected ridge model does not beat the best pure by more than the worst-candidate pure-calibrated upper threshold",
+    "ambiguity": "best pure minus runner exceeds a separately null-calibrated upper threshold",
+    "pure_signal": "best pure minus intercept-only null exceeds a familywise null-calibrated upper threshold"
+  }
+}

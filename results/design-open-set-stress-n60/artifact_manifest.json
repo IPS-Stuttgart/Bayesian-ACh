@@ -1,0 +1,77 @@
+{
+  "artifact": "post_freeze_design_abstention_sensitivity",
+  "configuration_sha256": "a5ecb194d9ef93f336e4acd1d55fdde3b5570aa5d60d3c0dbf4eef0209590844",
+  "files": [
+    {
+      "bytes": 3705,
+      "path": "summary.json",
+      "sha256": "c4a6dd3271506da87667ac91566e317c3b16273d6d16b5d8f24a9839288990e7"
+    },
+    {
+      "bytes": 652,
+      "path": "thresholds.csv",
+      "sha256": "e606262f2b42e1671a68b8ec4dc4b87cb38ba8f56fd0a5d9704d4652c025d513"
+    },
+    {
+      "bytes": 2521,
+      "path": "calibration_audit.csv",
+      "sha256": "148002a5d321a3a98855e690649f9ecf1384dda2d754a24021711adfc7172ff4"
+    },
+    {
+      "bytes": 3839,
+      "path": "pure_recovery.csv",
+      "sha256": "4ccbd057d609c75b39a428d2708b1aa4afba95cab9990bb9c8f772388b66c17f"
+    },
+    {
+      "bytes": 631,
+      "path": "null_evaluation.csv",
+      "sha256": "25a06c37aea06319ca7bf5abfd93f5b23bfc25c82ac932e23f4d224ae2abd5a1"
+    },
+    {
+      "bytes": 12148,
+      "path": "mixture_evaluation.csv",
+      "sha256": "393b44e646417d0742e2f15a7b8aeac046cc39ff24e35d9f4b15194929e7b1db"
+    },
+    {
+      "bytes": 1793,
+      "path": "out_of_span_evaluation.csv",
+      "sha256": "24054f50878222ad14478b02e8e59aec85b3d9a93d4ede447f9581531982857a"
+    },
+    {
+      "bytes": 5008,
+      "path": "allocations.csv",
+      "sha256": "86e1bc633a8fe9917a8b50ee6563a38706c6fd4b6124e69a5b69257c9c2af5e4"
+    }
+  ],
+  "inputs": [
+    {
+      "allocation_bytes": 14450,
+      "allocation_file": "optimal_design_allocation_seed7.csv",
+      "allocation_file_seed_field_present": false,
+      "allocation_seed": 7,
+      "allocation_seed_source": "explicit_cli_metadata",
+      "allocation_sha256": "a823be49faf6c6cbebf60b11d4b5ca895cf7734d6e9c577ee98f97a5907b69b2",
+      "construction_contract": {
+        "all_three_allocations_reconstructed": true,
+        "allocation_seed": 7,
+        "comparator_cap_semantics": "the maximin cap does not apply to the deterministic coupled-novelty or uniform-factorial constructors",
+        "maximin_max_point_fraction": 0.15,
+        "maximin_maximum_count_by_budget": {
+          "60": 9
+        }
+      },
+      "design_budgets": {
+        "coupled_novelty": 60,
+        "maximin_optimized": 60,
+        "uniform_factorial": 60
+      },
+      "kind": "chronologically_locked_primary_design_allocation",
+      "source_code_sha": "1b2028929ac6ebc1cce0882f0c22af9918044342",
+      "source_repository": "IPS-Stuttgart/Bayesian-ACh"
+    }
+  ],
+  "producer_commit": "c71695fda83ae93407599a909097962ee3fa9e0e",
+  "producer_git_dirty": false,
+  "repository": "IPS-Stuttgart/Bayesian-ACh",
+  "schema_version": 1
+}
