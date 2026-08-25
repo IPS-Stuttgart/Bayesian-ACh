@@ -1,6 +1,7 @@
 import csv
 import hashlib
 import json
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -41,9 +42,9 @@ def test_gate_requires_signal_separation_and_pure_adequacy() -> None:
     )
     assert _call(decisive, thresholds) == (2, "pure_call")
 
-    no_signal = _Scores(**{**decisive.__dict__, "best_pure_score": 1.0})
-    ambiguous = _Scores(**{**decisive.__dict__, "runner_score": 4.0})
-    misspecified = _Scores(**{**decisive.__dict__, "flexible_score": 6.01})
+    no_signal = replace(decisive, best_pure_score=1.0)
+    ambiguous = replace(decisive, runner_score=4.0)
+    misspecified = replace(decisive, flexible_score=6.01)
     assert _call(no_signal, thresholds) == (None, "null_not_rejected")
     assert _call(ambiguous, thresholds) == (None, "pure_ambiguity")
     assert _call(misspecified, thresholds) == (None, "flexible_model_better")
