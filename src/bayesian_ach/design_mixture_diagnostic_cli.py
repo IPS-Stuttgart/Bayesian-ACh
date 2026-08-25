@@ -196,7 +196,8 @@ def verify_mixture_diagnostic_artifact(directory: Path) -> dict[str, Any]:
         or config.get("threshold_seed") != 196613
         or config.get("calibration_audit_seed") != 262147
         or config.get("evaluation_seed") != 324949
-        or config.get("minimum_pure_power_wilson_lower") != 0.70
+        or config.get("minimum_pure_retention_wilson_lower") != 0.70
+        or config.get("minimum_rejection_power_wilson_lower") != 0.70
         or config.get("folds") != 3
         or config.get("budget") != 60
     ):
