@@ -227,7 +227,7 @@ def _load_locked_design_allocation(
         raise ValueError("locked allocation must contain every declared design")
     if seeds != {str(_LOCKED_ALLOCATION_SEED)}:
         raise ValueError("locked allocation seed does not match the frozen constructor")
-    expected_counts = {
+    expected_counts: dict[str, NDArray[np.int64]] = {
         "coupled_novelty": coupled_novelty_design(
             grid_rows,
             budgets["coupled_novelty"],
