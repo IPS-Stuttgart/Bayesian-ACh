@@ -174,7 +174,9 @@ def _load_locked_design_allocation(
     if re.fullmatch(r"[0-9a-f]{64}", expected_sha256) is None:
         raise ValueError("locked allocation SHA-256 must contain 64 lowercase hex characters")
     if _SHA_PATTERN.fullmatch(source_code_sha) is None:
-        raise ValueError("locked allocation source code SHA must contain 40 lowercase hex characters")
+        raise ValueError(
+            "locked allocation source code SHA must contain 40 lowercase hex characters"
+        )
     observed_sha256 = _sha256(path)
     if observed_sha256 != expected_sha256:
         raise ValueError("locked design allocation SHA-256 mismatch")
