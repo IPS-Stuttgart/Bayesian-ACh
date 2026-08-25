@@ -19,8 +19,8 @@ from numpy.typing import NDArray
 
 from bayesian_ach.design_grid import generate_transition_design_grid
 from bayesian_ach.design_stress import (
-    STRESS_DESIGNS,
     DesignStressConfig,
+    STRESS_DESIGNS,
     run_design_stress,
 )
 from bayesian_ach.io import write_json, write_rows_csv
