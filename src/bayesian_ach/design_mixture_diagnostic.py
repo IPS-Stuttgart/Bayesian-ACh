@@ -410,7 +410,7 @@ def _audit_power(
     for candidate, name in enumerate(DESIGN_CANDIDATE_NAMES):
         correct = 0
         wrong = 0
-        reasons: dict[str, int] = {}
+        pure_reasons: dict[str, int] = {}
         for replicate in range(config.calibration_audit_replicates):
             scores = _simulate(
                 signals,
@@ -426,7 +426,7 @@ def _audit_power(
             call, reason = _call(scores, thresholds, all_enabled)
             correct += int(call == candidate)
             wrong += int(call is not None and call != candidate)
-            reasons[reason] = reasons.get(reason, 0) + 1
+            pure_reasons[reason] = pure_reasons.get(reason, 0) + 1
         lower, upper = _wilson_interval(
             correct,
             config.calibration_audit_replicates,
@@ -452,7 +452,7 @@ def _audit_power(
                     config.minimum_pure_retention_wilson_lower
                 ),
                 "contrast_enabled": is_enabled,
-                "reasons": dict(sorted(reasons.items())),
+                "reasons": dict(sorted(pure_reasons.items())),
             }
         )
 
@@ -504,7 +504,7 @@ def _audit_power(
     for pair_index, pair in enumerate(_PAIR_INDICES):
         generator = _scaled_mixture(full_signals, *pair)[indices]
         abstentions = 0
-        reasons: dict[str, int] = {}
+        pair_reasons: dict[str, int] = {}
         for replicate in range(config.calibration_audit_replicates):
             scores = _simulate(
                 signals,
@@ -519,7 +519,7 @@ def _audit_power(
             )
             call, reason = _call(scores, thresholds, enabled_tuple)
             abstentions += int(call is None)
-            reasons[reason] = reasons.get(reason, 0) + 1
+            pair_reasons[reason] = pair_reasons.get(reason, 0) + 1
         lower, upper = _wilson_interval(
             abstentions,
             config.calibration_audit_replicates,
@@ -548,7 +548,7 @@ def _audit_power(
                     config.minimum_rejection_power_wilson_lower
                 ),
                 "contrast_enabled": is_enabled,
-                "reasons": dict(sorted(reasons.items())),
+                "reasons": dict(sorted(pair_reasons.items())),
             }
         )
 
