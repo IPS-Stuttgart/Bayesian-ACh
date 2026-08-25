@@ -107,6 +107,21 @@ def test_profiled_gaussian_gap_and_default_trial_targets() -> None:
     assert "expected_log_bf_per_trial" not in legacy.as_dict()
 
 
+def test_pairwise_residual_identifies_affine_equivalence_on_support() -> None:
+    alternative = np.array([-1.0, 0.0, 1.0, 2.0])
+    affine_generator = 2.0 + 3.0 * alternative
+    nonaffine_generator = np.array([0.0, 1.0, 0.0, 2.0])
+    constant_alternative = np.ones(4)
+    signals = np.column_stack(
+        (alternative, affine_generator, nonaffine_generator, constant_alternative)
+    )
+    residual = pairwise_residual_matrix(signals, np.ones(4, dtype=np.int64))
+
+    assert residual[1, 0] == pytest.approx(0.0, abs=1e-12)
+    assert residual[2, 0] > 0.0
+    assert residual[2, 3] == pytest.approx(np.var(nonaffine_generator))
+    assert residual[3, 0] == pytest.approx(0.0, abs=1e-12)
+
 def test_affine_reparameterization_preserves_geometry_and_profiled_scores() -> None:
     _, _, standardized = generate_transition_design_grid()
     shifts = np.linspace(-4.0, 3.0, standardized.shape[1])
