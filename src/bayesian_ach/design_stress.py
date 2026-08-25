@@ -32,7 +32,8 @@ STRESS_DESIGNS = (
 class DesignStressConfig:
     """Frozen simulation and calibration settings for the sensitivity artifact."""
 
-    budget_factors: tuple[float, ...] = (0.5, 1.0, 2.0)
+    fixed_budgets: tuple[int, ...] = (60,)
+    budget_factors: tuple[float, ...] = ()
     calibration_replicates: int = 100
     calibration_audit_replicates: int = 100
     evaluation_replicates: int = 200
@@ -51,9 +52,15 @@ class DesignStressConfig:
     evaluation_seed: int = 155921
 
     def validate(self) -> None:
+        if not self.fixed_budgets and not self.budget_factors:
+            raise ValueError("at least one fixed budget or N_eff factor is required")
         if (
-            not self.budget_factors
-            or any(
+            any(value < len(DESIGN_CANDIDATE_NAMES) + 1 for value in self.fixed_budgets)
+            or len(set(self.fixed_budgets)) != len(self.fixed_budgets)
+        ):
+            raise ValueError("fixed_budgets must be unique and exceed candidate count")
+        if (
+            any(
                 not math.isfinite(value) or value <= 0.0
                 for value in self.budget_factors
             )
@@ -508,7 +515,7 @@ def _calibrate_thresholds(
 def _calibration_audit_rows(
     design: str,
     design_index: int,
-    factor: float,
+    factor: float | None,
     budget: int,
     signals: NDArray[np.float64],
     thresholds: _Thresholds,
@@ -539,6 +546,7 @@ def _calibration_audit_rows(
     rows.append(
         {
             "design": design,
+            "budget_schedule": "fixed_budget" if factor is None else "n_eff_factor",
             "budget_factor": factor,
             "budget": budget,
             "scenario": "null",
@@ -582,7 +590,8 @@ def _calibration_audit_rows(
         rows.append(
             {
                 "design": design,
-                "budget_factor": factor,
+                "budget_schedule": "fixed_budget" if factor is None else "n_eff_factor",
+            "budget_factor": factor,
                 "budget": budget,
                 "scenario": "matched_pure",
                 "generator": name,
@@ -648,7 +657,8 @@ def _evaluation_rows(
         pure_rows.append(
             {
                 "design": design,
-                "budget_factor": factor,
+                "budget_schedule": "fixed_budget" if factor is None else "n_eff_factor",
+            "budget_factor": factor,
                 "budget": budget,
                 "generator": name,
                 "replicates": config.evaluation_replicates,
@@ -691,6 +701,7 @@ def _evaluation_rows(
     null_rows = [
         {
             "design": design,
+            "budget_schedule": "fixed_budget" if factor is None else "n_eff_factor",
             "budget_factor": factor,
             "budget": budget,
             "replicates": config.evaluation_replicates,
@@ -742,7 +753,8 @@ def _evaluation_rows(
         mixture_rows.append(
             {
                 "design": design,
-                "budget_factor": factor,
+                "budget_schedule": "fixed_budget" if factor is None else "n_eff_factor",
+            "budget_factor": factor,
                 "budget": budget,
                 "first_candidate": DESIGN_CANDIDATE_NAMES[first],
                 "second_candidate": DESIGN_CANDIDATE_NAMES[second],
@@ -830,6 +842,7 @@ def _out_of_span_rows(
     return [
         {
             "design": design,
+            "budget_schedule": "fixed_budget" if factor is None else "n_eff_factor",
             "budget_factor": factor,
             "budget": budget,
             "probe": "full_grid_orthogonalized_tanh_surprise",
@@ -879,9 +892,25 @@ def run_design_stress(
     out_of_span_rows: list[dict[str, Any]] = []
     allocation_rows: list[dict[str, Any]] = []
 
+    schedules_per_design = len(config.fixed_budgets) + len(config.budget_factors)
     for design_index, design in enumerate(STRESS_DESIGNS):
-        for factor in config.budget_factors:
-            budget = int(math.ceil(factor * base_targets[design]))
+        schedules = [
+            ("fixed_budget", None, budget)
+            for budget in config.fixed_budgets
+        ] + [
+            (
+                "n_eff_factor",
+                factor,
+                int(math.ceil(factor * base_targets[design])),
+            )
+            for factor in config.budget_factors
+        ]
+        budgets = [budget for _, _, budget in schedules]
+        if len(set(budgets)) != len(budgets):
+            raise ValueError(
+                f"stress schedules duplicate a budget for design {design}"
+            )
+        for budget_schedule, factor, budget in schedules:
             maximum_count = max(
                 1,
                 int(math.ceil(config.max_point_fraction * budget)),
@@ -922,6 +951,7 @@ def run_design_stress(
                 allocation_rows.append(
                     {
                         "design": design,
+                        "budget_schedule": budget_schedule,
                         "budget_factor": factor,
                         "budget": budget,
                         "allocation_source": allocation_source,
@@ -939,6 +969,7 @@ def run_design_stress(
             threshold_rows.append(
                 {
                     "design": design,
+                    "budget_schedule": budget_schedule,
                     "budget_factor": factor,
                     "budget": budget,
                     "allocation_source": allocation_source,
@@ -1054,9 +1085,9 @@ def run_design_stress(
             )
             == 3,
             "all_fifteen_mixtures_per_design_budget": len(mixture_rows)
-            == len(STRESS_DESIGNS) * len(config.budget_factors) * 15,
+            == len(STRESS_DESIGNS) * schedules_per_design * 15,
             "one_out_of_span_probe_per_design_budget": len(out_of_span_rows)
-            == len(STRESS_DESIGNS) * len(config.budget_factors),
+            == len(STRESS_DESIGNS) * schedules_per_design,
             "all_thresholds_finite": all(
                 np.isfinite(
                     [
