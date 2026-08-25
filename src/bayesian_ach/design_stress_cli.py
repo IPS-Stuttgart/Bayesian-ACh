@@ -17,7 +17,12 @@ from typing import Any
 import numpy as np
 from numpy.typing import NDArray
 
-from bayesian_ach.design_grid import generate_transition_design_grid
+from bayesian_ach.design_grid import (
+    coupled_novelty_design,
+    generate_transition_design_grid,
+    uniform_factorial_design,
+)
+from bayesian_ach.design_optimizer import optimize_maximin_design
 from bayesian_ach.design_stress import (
     STRESS_DESIGNS,
     DesignStressConfig,
@@ -26,6 +31,8 @@ from bayesian_ach.design_stress import (
 from bayesian_ach.io import write_json, write_rows_csv
 
 _REPOSITORY = "IPS-Stuttgart/Bayesian-ACh"
+_LOCKED_ALLOCATION_SEED = 7
+_LOCKED_MAXIMIN_MAX_POINT_FRACTION = 0.15
 _SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 _PAYLOAD_FILENAMES = (
     "summary.json",
@@ -180,7 +187,8 @@ def _load_locked_design_allocation(
     observed_sha256 = _sha256(path)
     if observed_sha256 != expected_sha256:
         raise ValueError("locked design allocation SHA-256 mismatch")
-    point_count = len(generate_transition_design_grid()[0])
+    grid_rows, _, standardized = generate_transition_design_grid()
+    point_count = len(grid_rows)
     counts: dict[str, NDArray[np.int64]] = {
         design: np.zeros(point_count, dtype=np.int64)
         for design in STRESS_DESIGNS
@@ -217,6 +225,29 @@ def _load_locked_design_allocation(
     budgets = {design: int(np.sum(value)) for design, value in counts.items()}
     if any(budget <= 0 for budget in budgets.values()):
         raise ValueError("locked allocation must contain every declared design")
+    if seeds != {str(_LOCKED_ALLOCATION_SEED)}:
+        raise ValueError("locked allocation seed does not match the frozen constructor")
+    expected_counts = {
+        "coupled_novelty": coupled_novelty_design(
+            grid_rows,
+            budgets["coupled_novelty"],
+        ),
+        "uniform_factorial": uniform_factorial_design(
+            point_count,
+            budgets["uniform_factorial"],
+            seed=_LOCKED_ALLOCATION_SEED,
+        ),
+        "maximin_optimized": optimize_maximin_design(
+            standardized,
+            budgets["maximin_optimized"],
+            max_point_fraction=_LOCKED_MAXIMIN_MAX_POINT_FRACTION,
+        ).counts,
+    }
+    for design, expected in expected_counts.items():
+        if not np.array_equal(counts[design], expected):
+            raise ValueError(
+                f"locked {design} allocation does not match its frozen constructor"
+            )
     overrides = {
         (design, budgets[design]): value
         for design, value in counts.items()
@@ -230,6 +261,23 @@ def _load_locked_design_allocation(
         "allocation_bytes": path.stat().st_size,
         "design_budgets": budgets,
         "seeds": sorted(seeds),
+        "construction_contract": {
+            "allocation_seed": _LOCKED_ALLOCATION_SEED,
+            "maximin_max_point_fraction": _LOCKED_MAXIMIN_MAX_POINT_FRACTION,
+            "maximin_maximum_count_by_budget": {
+                str(budgets["maximin_optimized"]): int(
+                    math.ceil(
+                        _LOCKED_MAXIMIN_MAX_POINT_FRACTION
+                        * budgets["maximin_optimized"]
+                    )
+                )
+            },
+            "comparator_cap_semantics": (
+                "the maximin cap does not apply to the deterministic "
+                "coupled-novelty or uniform-factorial constructors"
+            ),
+            "all_three_allocations_reconstructed": True,
+        },
     }
     return overrides, provenance
 
