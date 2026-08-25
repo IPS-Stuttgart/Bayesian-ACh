@@ -16,6 +16,7 @@ from bayesian_ach.design import (
     generate_transition_design_grid,
     optimize_maximin_design,
     pairwise_residual_matrix,
+    profiled_gaussian_log_score_gap,
     uniform_factorial_design,
 )
 from bayesian_ach.design_recovery import DesignRecoveryRow, recover_design
@@ -36,9 +37,23 @@ class DesignBenchmarkConfig:
     test_fraction: float = 0.35
     effect_size: float = 1.0
     noise_std: float = 1.0
-    target_log_bf: float = 5.0
+    target_log_score_gap: float = 5.0
     max_point_fraction: float = 0.15
     seed: int = 7
+    target_log_bf: float | None = None
+
+    @property
+    def resolved_target_log_score_gap(self) -> float:
+        if self.target_log_bf is None:
+            return float(self.target_log_score_gap)
+        if self.target_log_score_gap != 5.0 and not np.isclose(
+            self.target_log_score_gap,
+            self.target_log_bf,
+        ):
+            raise ValueError(
+                "target_log_score_gap and deprecated target_log_bf disagree"
+            )
+        return float(self.target_log_bf)
 
     def validate(self) -> None:
         if self.budget < len(DESIGN_CANDIDATE_NAMES) + 1:
@@ -49,8 +64,9 @@ class DesignBenchmarkConfig:
             raise ValueError("test_fraction must lie in (0, 1)")
         if self.effect_size <= 0.0 or self.noise_std <= 0.0:
             raise ValueError("effect_size and noise_std must be positive")
-        if self.target_log_bf <= 0.0:
-            raise ValueError("target_log_bf must be positive")
+        target = self.resolved_target_log_score_gap
+        if not np.isfinite(target) or target <= 0.0:
+            raise ValueError("target_log_score_gap must be finite and positive")
         if not 0.0 < self.max_point_fraction <= 1.0:
             raise ValueError("max_point_fraction must lie in (0, 1]")
 
@@ -84,7 +100,7 @@ def run_design_benchmark(
         max_point_fraction=config.max_point_fraction,
         effect_size=config.effect_size,
         noise_std=config.noise_std,
-        target_log_bf=config.target_log_bf,
+        target_log_score_gap=config.resolved_target_log_score_gap,
     )
     allocations = {
         "coupled_novelty": coupled_novelty_design(rows, config.budget),
@@ -138,7 +154,7 @@ def _design_tables(
             counts,
             effect_size=config.effect_size,
             noise_std=config.noise_std,
-            target_log_bf=config.target_log_bf,
+            target_log_score_gap=config.resolved_target_log_score_gap,
         )
         diagnostics_rows.append({"design": name, **diagnostics.as_dict()})
         geometry = pairwise_residual_matrix(standardized, counts)
@@ -153,9 +169,12 @@ def _design_tables(
                         "generator": generator,
                         "alternative": alternative,
                         "residual_variance": residual,
-                        "expected_log_bf_per_trial": (
-                            config.effect_size**2 * residual
-                            / (2.0 * config.noise_std**2)
+                        "expected_profiled_log_score_gap_per_trial": (
+                            profiled_gaussian_log_score_gap(
+                                residual,
+                                effect_size=config.effect_size,
+                                noise_std=config.noise_std,
+                            )
                         ),
                     }
                 )
@@ -197,7 +216,11 @@ def _summary(
     )
     return {
         "experiment": "prospective_maximin_trial_design",
-        "config": asdict(config),
+        "config": {
+            key: value
+            for key, value in asdict(config).items()
+            if key != "target_log_bf"
+        },
         "grid_config": asdict(grid_config),
         "grid_point_count": len(rows),
         "candidate_names": list(DESIGN_CANDIDATE_NAMES),
