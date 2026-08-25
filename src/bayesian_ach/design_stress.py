@@ -423,6 +423,7 @@ def _design_counts(
 def _validated_override(
     value: NDArray[np.int64],
     *,
+    design: str,
     point_count: int,
     budget: int,
     maximum_count: int,
@@ -432,8 +433,8 @@ def _validated_override(
         raise ValueError("allocation override must be a nonnegative grid-sized vector")
     if int(np.sum(counts)) != budget:
         raise ValueError("allocation override must sum to its declared budget")
-    if np.any(counts > maximum_count):
-        raise ValueError("allocation override exceeds the per-cell cap")
+    if design == "maximin_optimized" and np.any(counts > maximum_count):
+        raise ValueError("maximin allocation override exceeds the per-cell cap")
     return counts
 
 
@@ -926,6 +927,7 @@ def run_design_stress(
             if key in overrides:
                 counts = _validated_override(
                     overrides[key],
+                    design=design,
                     point_count=len(grid_rows),
                     budget=budget,
                     maximum_count=maximum_count,
