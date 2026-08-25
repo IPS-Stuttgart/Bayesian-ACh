@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 import argparse
+from collections.abc import Sequence
 import csv
 import hashlib
 import json
 from dataclasses import asdict
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any
 
-import numpy as np
 import scipy
 
 from bayesian_ach.design_certificate import (
