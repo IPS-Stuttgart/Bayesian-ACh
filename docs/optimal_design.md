@@ -61,13 +61,23 @@ y=a x_k+\epsilon,
 \epsilon\sim\mathcal N(0,\sigma^2),
 ```
 
-the expected held-out log-evidence separation from candidate $`l`$, per trial,
-is
+the generating candidate has residual variance $`\sigma^2`$, whereas the
+alternative's asymptotically profiled residual variance is
+$`\sigma^2+a^2R_{k\mid l}(w)`$. Because the recovery code estimates a separate
+training residual variance for every candidate, the corresponding expected
+held-out Gaussian log-score gap per trial is
 
 ```math
-\frac{a^2}{2\sigma^2}R_{k\mid l}(w).
+G_{k\mid l}(w)
+=
+\frac{1}{2}\log\!\left(
+1+\frac{a^2R_{k\mid l}(w)}{\sigma^2}
+\right).
 ```
 
+The earlier linear expression $`a^2R/(2\sigma^2)`$ is only the first-order
+small-residual expansion of this profiled-variance gap; it is not a Bayes
+factor.
 The primary design criterion is therefore
 
 ```math
@@ -76,7 +86,536 @@ The primary design criterion is therefore
 
 This directly optimizes the worst candidate confusion rather than average
 variance or a global determinant that can hide one nearly indistinguishable
-pair.
+pair. For fixed # Maximin prospective experimental design
+
+## Motivation
+
+Bayesian-ACh originally supplied hand-built dissociations such as matched
+confidence and sensor-versus-world changes. Those contrasts are scientifically
+useful, but a prospective study still has to decide how many trials to allocate
+to each feasible condition. A one-dimensional novel-versus-familiar schedule can
+leave the candidate signals almost collinear even when the total number of
+trials is large.
+
+Version 0.7 adds a finite-design optimizer that converts the candidate equations
+into an auditable trial allocation.
+
+## Feasible design grid
+
+For a three-state categorical transition, one design point controls:
+
+- probability of the observed next state;
+- distribution of the remaining probability mass;
+- Dirichlet concentration, or evidence mass;
+- probability assigned to the observation by a reset model;
+- prior reset hazard.
+
+Every point is evaluated by the same exact transition model and yields the six
+candidate signals:
+
+```text
+innovation_l2
+surprise
+gain
+update_l2
+information_gain
+change_probability
+```
+
+The default grid contains 240 conditions. The optimizer never invents a
+condition outside this declared feasible set.
+
+## Maximin objective
+
+Let $`x_k(d)`$ be the globally standardized value of candidate $`k`$ at design
+point $`d`$, and let $`w_d`$ be the fraction of trials allocated to that point.
+For an ordered generator/alternative pair $`(k,l)`$, regress $`x_k`$ on an
+intercept and $`x_l`$ under the design weights. The residual variance is
+
+```math
+R_{k\mid l}(w)
+=
+\mathrm{Var}_w(x_k)
+-
+\frac{\mathrm{Cov}_w(x_k,x_l)^2}
+     {\mathrm{Var}_w(x_l)}.
+```
+
+Under the Gaussian response model
+
+```math
+y=a x_k+\epsilon,
+\qquad
+\epsilon\sim\mathcal N(0,\sigma^2),
+```
+
+the generating candidate has residual variance $`\sigma^2`$, whereas the
+alternative's asymptotically profiled residual variance is
+$`\sigma^2+a^2R_{k\mid l}(w)`$. Because the recovery code estimates a separate
+training residual variance for every candidate, the corresponding expected
+held-out Gaussian log-score gap per trial is
+
+```math
+G_{k\mid l}(w)
+=
+\frac{1}{2}\log\!\left(
+1+\frac{a^2R_{k\mid l}(w)}{\sigma^2}
+\right).
+```
+
+The earlier linear expression $`a^2R/(2\sigma^2)`$ is only the first-order
+small-residual expansion of this profiled-variance gap; it is not a Bayes
+factor.
+The primary design criterion is therefore
+
+```math
+\max_w\min_{k\ne l} R_{k\mid l}(w).
+```
+
+a/\sigma`$, # Maximin prospective experimental design
+
+## Motivation
+
+Bayesian-ACh originally supplied hand-built dissociations such as matched
+confidence and sensor-versus-world changes. Those contrasts are scientifically
+useful, but a prospective study still has to decide how many trials to allocate
+to each feasible condition. A one-dimensional novel-versus-familiar schedule can
+leave the candidate signals almost collinear even when the total number of
+trials is large.
+
+Version 0.7 adds a finite-design optimizer that converts the candidate equations
+into an auditable trial allocation.
+
+## Feasible design grid
+
+For a three-state categorical transition, one design point controls:
+
+- probability of the observed next state;
+- distribution of the remaining probability mass;
+- Dirichlet concentration, or evidence mass;
+- probability assigned to the observation by a reset model;
+- prior reset hazard.
+
+Every point is evaluated by the same exact transition model and yields the six
+candidate signals:
+
+```text
+innovation_l2
+surprise
+gain
+update_l2
+information_gain
+change_probability
+```
+
+The default grid contains 240 conditions. The optimizer never invents a
+condition outside this declared feasible set.
+
+## Maximin objective
+
+Let $`x_k(d)`$ be the globally standardized value of candidate $`k`$ at design
+point $`d`$, and let $`w_d`$ be the fraction of trials allocated to that point.
+For an ordered generator/alternative pair $`(k,l)`$, regress $`x_k`$ on an
+intercept and $`x_l`$ under the design weights. The residual variance is
+
+```math
+R_{k\mid l}(w)
+=
+\mathrm{Var}_w(x_k)
+-
+\frac{\mathrm{Cov}_w(x_k,x_l)^2}
+     {\mathrm{Var}_w(x_l)}.
+```
+
+Under the Gaussian response model
+
+```math
+y=a x_k+\epsilon,
+\qquad
+\epsilon\sim\mathcal N(0,\sigma^2),
+```
+
+the generating candidate has residual variance $`\sigma^2`$, whereas the
+alternative's asymptotically profiled residual variance is
+$`\sigma^2+a^2R_{k\mid l}(w)`$. Because the recovery code estimates a separate
+training residual variance for every candidate, the corresponding expected
+held-out Gaussian log-score gap per trial is
+
+```math
+G_{k\mid l}(w)
+=
+\frac{1}{2}\log\!\left(
+1+\frac{a^2R_{k\mid l}(w)}{\sigma^2}
+\right).
+```
+
+The earlier linear expression $`a^2R/(2\sigma^2)`$ is only the first-order
+small-residual expansion of this profiled-variance gap; it is not a Bayes
+factor.
+The primary design criterion is therefore
+
+```math
+\max_w\min_{k\ne l} R_{k\mid l}(w).
+```
+
+G`$ is strictly increasing in # Maximin prospective experimental design
+
+## Motivation
+
+Bayesian-ACh originally supplied hand-built dissociations such as matched
+confidence and sensor-versus-world changes. Those contrasts are scientifically
+useful, but a prospective study still has to decide how many trials to allocate
+to each feasible condition. A one-dimensional novel-versus-familiar schedule can
+leave the candidate signals almost collinear even when the total number of
+trials is large.
+
+Version 0.7 adds a finite-design optimizer that converts the candidate equations
+into an auditable trial allocation.
+
+## Feasible design grid
+
+For a three-state categorical transition, one design point controls:
+
+- probability of the observed next state;
+- distribution of the remaining probability mass;
+- Dirichlet concentration, or evidence mass;
+- probability assigned to the observation by a reset model;
+- prior reset hazard.
+
+Every point is evaluated by the same exact transition model and yields the six
+candidate signals:
+
+```text
+innovation_l2
+surprise
+gain
+update_l2
+information_gain
+change_probability
+```
+
+The default grid contains 240 conditions. The optimizer never invents a
+condition outside this declared feasible set.
+
+## Maximin objective
+
+Let $`x_k(d)`$ be the globally standardized value of candidate $`k`$ at design
+point $`d`$, and let $`w_d`$ be the fraction of trials allocated to that point.
+For an ordered generator/alternative pair $`(k,l)`$, regress $`x_k`$ on an
+intercept and $`x_l`$ under the design weights. The residual variance is
+
+```math
+R_{k\mid l}(w)
+=
+\mathrm{Var}_w(x_k)
+-
+\frac{\mathrm{Cov}_w(x_k,x_l)^2}
+     {\mathrm{Var}_w(x_l)}.
+```
+
+Under the Gaussian response model
+
+```math
+y=a x_k+\epsilon,
+\qquad
+\epsilon\sim\mathcal N(0,\sigma^2),
+```
+
+the generating candidate has residual variance $`\sigma^2`$, whereas the
+alternative's asymptotically profiled residual variance is
+$`\sigma^2+a^2R_{k\mid l}(w)`$. Because the recovery code estimates a separate
+training residual variance for every candidate, the corresponding expected
+held-out Gaussian log-score gap per trial is
+
+```math
+G_{k\mid l}(w)
+=
+\frac{1}{2}\log\!\left(
+1+\frac{a^2R_{k\mid l}(w)}{\sigma^2}
+\right).
+```
+
+The earlier linear expression $`a^2R/(2\sigma^2)`$ is only the first-order
+small-residual expansion of this profiled-variance gap; it is not a Bayes
+factor.
+The primary design criterion is therefore
+
+```math
+\max_w\min_{k\ne l} R_{k\mid l}(w).
+```
+
+R`$, so the
+maximin allocation and all residual-ratio comparisons are unchanged by the
+profiled-variance correction.
+
+### Affine-equivalence proposition
+
+Every candidate fit contains an intercept and a free slope. Replacing a
+candidate column by # Maximin prospective experimental design
+
+## Motivation
+
+Bayesian-ACh originally supplied hand-built dissociations such as matched
+confidence and sensor-versus-world changes. Those contrasts are scientifically
+useful, but a prospective study still has to decide how many trials to allocate
+to each feasible condition. A one-dimensional novel-versus-familiar schedule can
+leave the candidate signals almost collinear even when the total number of
+trials is large.
+
+Version 0.7 adds a finite-design optimizer that converts the candidate equations
+into an auditable trial allocation.
+
+## Feasible design grid
+
+For a three-state categorical transition, one design point controls:
+
+- probability of the observed next state;
+- distribution of the remaining probability mass;
+- Dirichlet concentration, or evidence mass;
+- probability assigned to the observation by a reset model;
+- prior reset hazard.
+
+Every point is evaluated by the same exact transition model and yields the six
+candidate signals:
+
+```text
+innovation_l2
+surprise
+gain
+update_l2
+information_gain
+change_probability
+```
+
+The default grid contains 240 conditions. The optimizer never invents a
+condition outside this declared feasible set.
+
+## Maximin objective
+
+Let $`x_k(d)`$ be the globally standardized value of candidate $`k`$ at design
+point $`d`$, and let $`w_d`$ be the fraction of trials allocated to that point.
+For an ordered generator/alternative pair $`(k,l)`$, regress $`x_k`$ on an
+intercept and $`x_l`$ under the design weights. The residual variance is
+
+```math
+R_{k\mid l}(w)
+=
+\mathrm{Var}_w(x_k)
+-
+\frac{\mathrm{Cov}_w(x_k,x_l)^2}
+     {\mathrm{Var}_w(x_l)}.
+```
+
+Under the Gaussian response model
+
+```math
+y=a x_k+\epsilon,
+\qquad
+\epsilon\sim\mathcal N(0,\sigma^2),
+```
+
+the generating candidate has residual variance $`\sigma^2`$, whereas the
+alternative's asymptotically profiled residual variance is
+$`\sigma^2+a^2R_{k\mid l}(w)`$. Because the recovery code estimates a separate
+training residual variance for every candidate, the corresponding expected
+held-out Gaussian log-score gap per trial is
+
+```math
+G_{k\mid l}(w)
+=
+\frac{1}{2}\log\!\left(
+1+\frac{a^2R_{k\mid l}(w)}{\sigma^2}
+\right).
+```
+
+The earlier linear expression $`a^2R/(2\sigma^2)`$ is only the first-order
+small-residual expansion of this profiled-variance gap; it is not a Bayes
+factor.
+The primary design criterion is therefore
+
+```math
+\max_w\min_{k\ne l} R_{k\mid l}(w).
+```
+
+b+c x`$ with # Maximin prospective experimental design
+
+## Motivation
+
+Bayesian-ACh originally supplied hand-built dissociations such as matched
+confidence and sensor-versus-world changes. Those contrasts are scientifically
+useful, but a prospective study still has to decide how many trials to allocate
+to each feasible condition. A one-dimensional novel-versus-familiar schedule can
+leave the candidate signals almost collinear even when the total number of
+trials is large.
+
+Version 0.7 adds a finite-design optimizer that converts the candidate equations
+into an auditable trial allocation.
+
+## Feasible design grid
+
+For a three-state categorical transition, one design point controls:
+
+- probability of the observed next state;
+- distribution of the remaining probability mass;
+- Dirichlet concentration, or evidence mass;
+- probability assigned to the observation by a reset model;
+- prior reset hazard.
+
+Every point is evaluated by the same exact transition model and yields the six
+candidate signals:
+
+```text
+innovation_l2
+surprise
+gain
+update_l2
+information_gain
+change_probability
+```
+
+The default grid contains 240 conditions. The optimizer never invents a
+condition outside this declared feasible set.
+
+## Maximin objective
+
+Let $`x_k(d)`$ be the globally standardized value of candidate $`k`$ at design
+point $`d`$, and let $`w_d`$ be the fraction of trials allocated to that point.
+For an ordered generator/alternative pair $`(k,l)`$, regress $`x_k`$ on an
+intercept and $`x_l`$ under the design weights. The residual variance is
+
+```math
+R_{k\mid l}(w)
+=
+\mathrm{Var}_w(x_k)
+-
+\frac{\mathrm{Cov}_w(x_k,x_l)^2}
+     {\mathrm{Var}_w(x_l)}.
+```
+
+Under the Gaussian response model
+
+```math
+y=a x_k+\epsilon,
+\qquad
+\epsilon\sim\mathcal N(0,\sigma^2),
+```
+
+the generating candidate has residual variance $`\sigma^2`$, whereas the
+alternative's asymptotically profiled residual variance is
+$`\sigma^2+a^2R_{k\mid l}(w)`$. Because the recovery code estimates a separate
+training residual variance for every candidate, the corresponding expected
+held-out Gaussian log-score gap per trial is
+
+```math
+G_{k\mid l}(w)
+=
+\frac{1}{2}\log\!\left(
+1+\frac{a^2R_{k\mid l}(w)}{\sigma^2}
+\right).
+```
+
+The earlier linear expression $`a^2R/(2\sigma^2)`$ is only the first-order
+small-residual expansion of this profiled-variance gap; it is not a Bayes
+factor.
+The primary design criterion is therefore
+
+```math
+\max_w\min_{k\ne l} R_{k\mid l}(w).
+```
+
+c\ne0`$ leaves its affine column space,
+fitted predictions, candidate-specific residual variance, and held-out Gaussian
+log score unchanged. Independently z-standardizing the declared candidate
+columns also leaves every residual geometry and the optimized allocation
+unchanged under such affine reparameterizations (including sign reversal).
+This invariance does not justify unequal biological amplitudes: # Maximin prospective experimental design
+
+## Motivation
+
+Bayesian-ACh originally supplied hand-built dissociations such as matched
+confidence and sensor-versus-world changes. Those contrasts are scientifically
+useful, but a prospective study still has to decide how many trials to allocate
+to each feasible condition. A one-dimensional novel-versus-familiar schedule can
+leave the candidate signals almost collinear even when the total number of
+trials is large.
+
+Version 0.7 adds a finite-design optimizer that converts the candidate equations
+into an auditable trial allocation.
+
+## Feasible design grid
+
+For a three-state categorical transition, one design point controls:
+
+- probability of the observed next state;
+- distribution of the remaining probability mass;
+- Dirichlet concentration, or evidence mass;
+- probability assigned to the observation by a reset model;
+- prior reset hazard.
+
+Every point is evaluated by the same exact transition model and yields the six
+candidate signals:
+
+```text
+innovation_l2
+surprise
+gain
+update_l2
+information_gain
+change_probability
+```
+
+The default grid contains 240 conditions. The optimizer never invents a
+condition outside this declared feasible set.
+
+## Maximin objective
+
+Let $`x_k(d)`$ be the globally standardized value of candidate $`k`$ at design
+point $`d`$, and let $`w_d`$ be the fraction of trials allocated to that point.
+For an ordered generator/alternative pair $`(k,l)`$, regress $`x_k`$ on an
+intercept and $`x_l`$ under the design weights. The residual variance is
+
+```math
+R_{k\mid l}(w)
+=
+\mathrm{Var}_w(x_k)
+-
+\frac{\mathrm{Cov}_w(x_k,x_l)^2}
+     {\mathrm{Var}_w(x_l)}.
+```
+
+Under the Gaussian response model
+
+```math
+y=a x_k+\epsilon,
+\qquad
+\epsilon\sim\mathcal N(0,\sigma^2),
+```
+
+the generating candidate has residual variance $`\sigma^2`$, whereas the
+alternative's asymptotically profiled residual variance is
+$`\sigma^2+a^2R_{k\mid l}(w)`$. Because the recovery code estimates a separate
+training residual variance for every candidate, the corresponding expected
+held-out Gaussian log-score gap per trial is
+
+```math
+G_{k\mid l}(w)
+=
+\frac{1}{2}\log\!\left(
+1+\frac{a^2R_{k\mid l}(w)}{\sigma^2}
+\right).
+```
+
+The earlier linear expression $`a^2R/(2\sigma^2)`$ is only the first-order
+small-residual expansion of this profiled-variance gap; it is not a Bayes
+factor.
+The primary design criterion is therefore
+
+```math
+\max_w\min_{k\ne l} R_{k\mid l}(w).
+```
+
+a`$ remains a
+prespecified effect per standardized candidate unit.
 
 ## Integer allocation algorithm
 
@@ -128,25 +667,26 @@ Gaussian response model or any candidate is biologically correct.
 ## Quantitative trial guidance
 
 The geometry also converts a prespecified signal-to-noise ratio into a transparent
-first-order trial target. For desired expected log Bayes factor $`B`$, the
-worst-pair approximation is
+asymptotic trial target. For desired cumulative expected profiled Gaussian
+log-score gap $`B`$, the worst-pair diagnostic is
 
 ```math
 N_{B}
 =
 \left\lceil
-\frac{2\sigma^2 B}
-     {a^2\min_{k\ne l}R_{k\mid l}(w)}
+\frac{B}
+     {\frac12\log\left(
+       1+a^2\min_{k\ne l}R_{k\mid l}(w)/\sigma^2
+     \right)}
 \right\rceil.
 ```
 
 At unit standardized amplitude, unit noise, and $`B=5`$, the default residuals
-correspond to approximately 40 trials for the maximin design, 88 for the seeded
-uniform factorial design, and 1,112 for the coupled-novelty design. These values
-are planning diagnostics, not retrospective power guarantees: serial dependence,
+correspond to 45 trials for the maximin design, 93 for the seeded uniform
+factorial design, and 1,113 for the coupled-novelty design. These values are
+planning diagnostics, not retrospective power guarantees: serial dependence,
 subject variation, sensor convolution, missing trials, and model misspecification
 must be included in a study-specific simulation before animal numbers are fixed.
-
 ## Scaling assumption and sensitivity requirement
 
 Global standardization gives each computational candidate one unit of variation
