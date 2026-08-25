@@ -8,29 +8,34 @@ recovery into biological evidence.
 
 ## Frozen schedule
 
-The default run evaluates the coupled-novelty, uniform-factorial, and maximin
-allocation targets at 0.5, 1, and 2 times their population observation-equivalent
-index, rounded upward. Those indices are recomputed from each design's 60-draw
-geometry using
+The primary run evaluates the chronologically earlier, equal-budget 60-draw
+allocation frozen for the five-seed paper benchmark. The CLI verifies the exact
+allocation-file SHA-256 and source-code commit, loads all three designs from that
+file, and rejects any recomputed or unused override. This prevents a later
+certificate or stress result from silently changing the primary schedule.
+
+The artifact still reports each design's population observation-equivalent index,
+recomputed from its 60-draw geometry using
 
 ```math
-G(R)=\tfrac12\log\!\left(1+a^2R/\sigma^2\right)
+G(R)=\tfrac12\log\!\left(1+a^2R/\sigma^2\right).
 ```
 
-with standardized generating signals, `a=1`, `sigma=1`, and target held-out
-log-score gap 5. Thus the default nominal budgets are 23/45/90 for maximin,
-47/93/186 for uniform factorial, and 557/1113/2226 for coupled novelty. These
-are effectively independent Gaussian observations. They are not physical trial,
-time-bin, fluorescence-sample, session, or animal counts.
+With standardized generating signals, `a=1`, `sigma=1`, and target held-out
+log-score gap 5, those indices are 45 for the heuristic maximin design, 93 for
+uniform factorial, and 1,113 for coupled novelty. The common primary budget of
+60 is not asserted to equal any one of those indices. Both are effectively
+independent Gaussian-observation counts, not physical trials, fluorescence
+samples, sessions, or animals.
 
-A checksum-bound certified integer allocation may replace an exactly matching
-maximin budget. The loader verifies the certificate summary, allocation, and
-checksum table, requires an integer certificate and direct geometry agreement,
-and rejects unused or duplicate overrides. Other allocations retain their
-declared deterministic constructors. A count vector over independently
-instantiated grid cells remains an allocation target, not an executable ordered
-history: no reset, washout, carry-over, or history-realization protocol is
-provided here.
+Optional `budget_factors` can generate separately labeled 0.5/1/2-type
+sensitivity schedules, and a checksum-bound certified integer allocation can
+replace an exactly matching optional maximin budget. Neither is part of the
+primary frozen run. In particular, a certified-N45 diagnostic completed before
+this primary freeze remains outside the primary artifact and was not used to
+tune its thresholds. A count vector over independently instantiated grid cells
+is still an allocation target, not an executable ordered history: no reset,
+washout, carry-over, or history-realization protocol is provided here.
 
 ## Train-only scoring and abstention
 
@@ -93,9 +98,12 @@ From a clean checkout of the exact stress commit:
 ```bash
 bayesian-ach-design-stress \
   --repo-root . \
-  --code-sha <40-character-commit> \
-  --output /absolute/path/design-stress \
-  --certified-allocation /absolute/path/n45/certified_allocation.csv
+  --code-sha <40-character-stress-commit> \
+  --output /absolute/path/design-stress-n60 \
+  --fixed-budgets 60 \
+  --locked-allocation /absolute/path/optimal_design_allocation_seed7.csv \
+  --locked-allocation-sha256 <frozen-64-character-sha256> \
+  --locked-design-code-sha <40-character-design-commit>
 ```
 
 The command refuses a dirty or mismatched checkout. It writes the configuration,
