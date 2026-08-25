@@ -42,6 +42,14 @@ class DesignBenchmarkConfig:
     seed: int = 7
     target_log_bf: float | None = None
 
+    def __post_init__(self) -> None:
+        if self.target_log_bf is None:
+            object.__setattr__(
+                self,
+                "target_log_bf",
+                float(self.target_log_score_gap),
+            )
+
     @property
     def resolved_target_log_score_gap(self) -> float:
         if self.target_log_bf is None:
