@@ -1,0 +1,2 @@
+replicates,false_pure_calls,abstentions,false_pure_call_rate,wilson_lower,wilson_upper,contrast_enabled_from_audit,claim_status,reasons
+200,1,199,0.005,0.0008831687156009762,0.027773704397892923,True,evaluated,"{""null_not_rejected"":196,""pure_ambiguity"":3,""pure_call"":1}"

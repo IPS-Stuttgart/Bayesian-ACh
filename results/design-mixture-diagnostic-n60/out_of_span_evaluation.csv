@@ -1,0 +1,2 @@
+probe,replicates,false_pure_calls,abstentions,false_pure_call_rate,wilson_lower,wilson_upper,contrast_enabled_from_audit,claim_status,full_grid_prestandardization_residual_sd,full_grid_maximum_absolute_mean_inner_product,reasons
+full_grid_orthogonalized_tanh_surprise,200,146,54,0.73,0.6645656480133157,0.7867655018531416,False,mandatory_abstain_underpowered,0.09057218165490002,4.3261690526226935e-14,"{""null_not_rejected"":29,""pure_ambiguity"":18,""pure_call"":146,""residual_lack_of_fit"":7}"

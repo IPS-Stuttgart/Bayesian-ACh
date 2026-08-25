@@ -1,0 +1,7 @@
+candidate,replicates,correct_pure_calls,wrong_pure_calls,abstentions,correct_call_rate,wilson_lower,wilson_upper,candidate_enabled_from_audit,reasons
+innovation_l2,200,160,3,37,0.8,0.7391448134346212,0.8495479907390189,True,"{""pairwise_composite_better"":2,""pure_ambiguity"":33,""pure_call"":163,""residual_lack_of_fit"":2}"
+surprise,200,173,3,24,0.865,0.8107086162924745,0.9055342954521209,True,"{""pairwise_composite_better"":2,""pure_ambiguity"":17,""pure_call"":176,""residual_lack_of_fit"":5}"
+gain,200,183,0,17,0.915,0.8681041292843443,0.9462542498225244,True,"{""pairwise_composite_better"":5,""pure_ambiguity"":2,""pure_call"":183,""residual_lack_of_fit"":10}"
+update_l2,200,176,1,23,0.88,0.8276574790170326,0.9180200729362449,True,"{""pairwise_composite_better"":11,""pure_ambiguity"":6,""pure_call"":177,""residual_lack_of_fit"":6}"
+information_gain,200,191,0,9,0.955,0.9167032959981803,0.976147456998507,True,"{""pairwise_composite_better"":1,""pure_ambiguity"":4,""pure_call"":191,""residual_lack_of_fit"":4}"
+change_probability,200,188,0,12,0.94,0.8980683070423372,0.9653478057456681,True,"{""pairwise_composite_better"":5,""pure_call"":188,""residual_lack_of_fit"":7}"
