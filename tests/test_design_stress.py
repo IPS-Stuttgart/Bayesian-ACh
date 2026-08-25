@@ -237,7 +237,7 @@ def test_stress_orchestration_covers_every_design_and_pair(
     result = run_design_stress(
         DesignStressConfig(
             fixed_budgets=(),
-        budget_factors=(1.0,),
+            budget_factors=(1.0,),
             calibration_replicates=20,
             calibration_audit_replicates=20,
             evaluation_replicates=20,
@@ -265,7 +265,7 @@ def test_unused_certified_override_is_rejected(
         run_design_stress(
             DesignStressConfig(
                 fixed_budgets=(),
-        budget_factors=(1.0,),
+            budget_factors=(1.0,),
                 calibration_replicates=20,
                 calibration_audit_replicates=20,
                 evaluation_replicates=20,
