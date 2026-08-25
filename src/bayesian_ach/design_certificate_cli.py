@@ -6,6 +6,7 @@ import argparse
 import csv
 import hashlib
 import json
+import math
 from collections.abc import Sequence
 from dataclasses import asdict
 from pathlib import Path
@@ -17,6 +18,7 @@ from bayesian_ach.design_certificate import (
     CertifiedDesignConfig,
     certificate_matches_geometry,
     certify_maximin_design,
+    population_n_eff_bracket,
 )
 from bayesian_ach.design_grid import DESIGN_CANDIDATE_NAMES, generate_transition_design_grid
 
@@ -64,6 +66,9 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--max-iterations", type=int, default=100)
     parser.add_argument("--master-time-limit", type=float, default=120.0)
     parser.add_argument("--master-mip-relative-gap", type=float, default=1.0e-9)
+    parser.add_argument("--effect-size", type=float, default=1.0)
+    parser.add_argument("--noise-std", type=float, default=1.0)
+    parser.add_argument("--target-log-score-gap", type=float, default=5.0)
     parser.add_argument("--require-certificate", action="store_true")
     return parser
 
@@ -83,8 +88,27 @@ def main(argv: Sequence[str] | None = None) -> int:
         master_time_limit_s=args.master_time_limit,
         master_mip_relative_gap=args.master_mip_relative_gap,
     )
+    population_target = (
+        float(args.effect_size),
+        float(args.noise_std),
+        float(args.target_log_score_gap),
+    )
+    if (
+        not all(math.isfinite(value) for value in population_target)
+        or any(value <= 0.0 for value in population_target)
+    ):
+        raise ValueError(
+            "effect-size, noise-std, and target-log-score-gap must be finite and positive"
+        )
     rows, _, standardized = generate_transition_design_grid()
     result = certify_maximin_design(standardized, config)
+    n_eff_lower, n_eff_upper = population_n_eff_bracket(
+        result.lower_bound,
+        result.upper_bound,
+        effect_size=args.effect_size,
+        noise_std=args.noise_std,
+        target_log_score_gap=args.target_log_score_gap,
+    )
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
 
@@ -128,6 +152,19 @@ def main(argv: Sequence[str] | None = None) -> int:
             standardized,
             result,
         ),
+        "population_n_eff": {
+            "effect_size": args.effect_size,
+            "noise_std": args.noise_std,
+            "target_log_score_gap": args.target_log_score_gap,
+            "lower_index_from_residual_upper_bound": n_eff_lower,
+            "upper_index_from_residual_lower_bound": n_eff_upper,
+            "index_certified": n_eff_lower == n_eff_upper,
+            "interpretation": (
+                "Population observation-equivalent index under effectively "
+                "independent Gaussian observations; not a physical trial, "
+                "time-bin, session, or animal count."
+            ),
+        },
         "scope": (
             "This certificate is conditional on the independently instantiated finite "
             "grid, global candidate standardization, budget, and per-cell cap. The "
