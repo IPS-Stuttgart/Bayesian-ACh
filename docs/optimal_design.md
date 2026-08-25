@@ -62,7 +62,7 @@ y=a x_k+\epsilon,
 ```
 
 the generating candidate has residual variance $`\sigma^2`$, whereas the
-alternative's asymptotically profiled residual variance is
+alternative's population-optimal profiled residual variance is
 $`\sigma^2+a^2R_{k\mid l}(w)`$. Because the recovery code estimates a separate
 training residual variance for every candidate, the corresponding expected
 held-out Gaussian log-score gap per trial is
@@ -90,17 +90,31 @@ pair. For fixed $`a/\sigma`$, $`G`$ is strictly increasing in $`R`$, so the
 maximin allocation and all residual-ratio comparisons are unchanged by the
 profiled-variance correction.
 
-### Affine-equivalence proposition
+### Affine-equivalence and identification proposition
 
-Every candidate fit contains an intercept and a free slope. Replacing a
-candidate column by $`b+c x`$ with $`c\ne0`$ leaves its affine column space,
-fitted predictions, candidate-specific residual variance, and held-out Gaussian
-log score unchanged. Independently z-standardizing the declared candidate
-columns also leaves every residual geometry and the optimized allocation
-unchanged under such affine reparameterizations (including sign reversal).
-This invariance does not justify unequal biological amplitudes: $`a`$ remains a
-prespecified effect per standardized candidate unit.
+For $`\mathrm{Var}_w(x_l)>0`$, the ordered residual has the projection
+interpretation
 
+```math
+R_{k\mid l}(w)
+=
+\min_{b,c}\;\mathbb E_w[(x_k-b-cx_l)^2].
+```
+
+Hence $`R_{k\mid l}=0`$ if and only if $`x_k=b+cx_l`$ almost surely on the
+positive-weight design support. If $`x_l`$ is constant, it adds nothing beyond
+the fitted intercept and the implementation sets
+$`R_{k\mid l}=\mathrm{Var}_w(x_k)`$; a constant generator consequently has
+zero residual against every alternative.
+
+Every candidate recovery fit contains an intercept and a free slope. Replacing
+a candidate column by $`b+c x`$ with $`c\ne0`$ therefore leaves its affine
+column space, fitted predictions, candidate-specific residual variance, and
+held-out Gaussian log score unchanged. Independently z-standardizing the
+declared candidate columns also leaves every residual geometry and the optimized
+allocation unchanged under such affine reparameterizations (including sign
+reversal). This invariance does not justify unequal biological amplitudes:
+$`a`$ remains a prespecified effect per standardized candidate unit.
 ## Integer allocation algorithm
 
 `optimize_maximin_design` uses deterministic greedy allocation followed by
