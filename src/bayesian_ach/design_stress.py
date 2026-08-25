@@ -761,6 +761,7 @@ def run_design_stress(
     grid_rows, _, standardized = generate_transition_design_grid()
     base_targets = _base_targets(grid_rows, standardized, config)
     overrides = {} if allocation_overrides is None else dict(allocation_overrides)
+    used_overrides: set[tuple[str, int]] = set()
 
     threshold_rows: list[dict[str, Any]] = []
     calibration_rows: list[dict[str, Any]] = []
@@ -785,6 +786,7 @@ def run_design_stress(
                     maximum_count=maximum_count,
                 )
                 allocation_source = "frozen_override"
+                used_overrides.add(key)
             else:
                 counts = _design_counts(
                     design,
@@ -868,6 +870,10 @@ def run_design_stress(
             pure_rows.extend(pure)
             null_rows.extend(null)
             mixture_rows.extend(mixture)
+
+    unused_overrides = set(overrides) - used_overrides
+    if unused_overrides:
+        raise ValueError(f"allocation overrides did not match a stress budget: {sorted(unused_overrides)}")
 
     minimum_pure_lower = min(float(row["wilson_lower"]) for row in pure_rows)
     maximum_null_upper = max(float(row["wilson_upper"]) for row in null_rows)
