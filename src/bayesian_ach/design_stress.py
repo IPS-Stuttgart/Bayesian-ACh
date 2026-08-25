@@ -95,6 +95,7 @@ class DesignStressResult:
     pure_recovery: tuple[dict[str, Any], ...]
     null_evaluation: tuple[dict[str, Any], ...]
     mixture_evaluation: tuple[dict[str, Any], ...]
+    out_of_span_evaluation: tuple[dict[str, Any], ...]
     allocations: tuple[dict[str, Any], ...]
 
 
@@ -745,6 +746,95 @@ def _evaluation_rows(
     return pure_rows, null_rows, mixture_rows
 
 
+def _out_of_span_probe(
+    full_grid_signals: NDArray[np.float64],
+) -> tuple[NDArray[np.float64], float, float]:
+    """Return a fixed nonlinear surprise probe orthogonal to the linear span."""
+
+    surprise_index = DESIGN_CANDIDATE_NAMES.index("surprise")
+    raw = np.tanh(full_grid_signals[:, surprise_index])
+    design = np.column_stack(
+        (np.ones(full_grid_signals.shape[0]), full_grid_signals)
+    )
+    coefficients, _, _, _ = np.linalg.lstsq(design, raw, rcond=None)
+    residual = raw - design @ coefficients
+    scale = float(np.std(residual))
+    if scale <= 1.0e-12:
+        raise RuntimeError("the nonlinear open-set probe is numerically degenerate")
+    probe = residual / scale
+    maximum_inner_product = float(
+        np.max(np.abs(design.T @ probe)) / full_grid_signals.shape[0]
+    )
+    return np.asarray(probe, dtype=float), scale, maximum_inner_product
+
+
+def _out_of_span_rows(
+    design: str,
+    design_index: int,
+    factor: float,
+    budget: int,
+    trial_signals: NDArray[np.float64],
+    full_grid_signals: NDArray[np.float64],
+    trial_indices: NDArray[np.int64],
+    thresholds: _Thresholds,
+    config: DesignStressConfig,
+) -> list[dict[str, Any]]:
+    probe, residual_scale, maximum_inner_product = _out_of_span_probe(
+        full_grid_signals
+    )
+    generator = probe[trial_indices]
+    false_calls = 0
+    reasons: dict[str, int] = {}
+    pure_call_counts = {name: 0 for name in DESIGN_CANDIDATE_NAMES}
+    for replicate in range(config.evaluation_replicates):
+        scores = _simulate_scores(
+            trial_signals,
+            generator,
+            config=config,
+            rng=_rng(
+                config.evaluation_seed,
+                design_index,
+                budget,
+                3,
+                replicate,
+            ),
+        )
+        call, reason = _call(scores, thresholds)
+        false_calls += int(call is not None)
+        if call is not None:
+            pure_call_counts[DESIGN_CANDIDATE_NAMES[call]] += 1
+        reasons[reason] = reasons.get(reason, 0) + 1
+    lower, upper = _wilson_interval(
+        false_calls,
+        config.evaluation_replicates,
+        config.confidence_level,
+    )
+    return [
+        {
+            "design": design,
+            "budget_factor": factor,
+            "budget": budget,
+            "probe": "full_grid_orthogonalized_tanh_surprise",
+            "probe_definition": (
+                "unit-SD residual of tanh(standardized surprise) after full-grid "
+                "OLS projection on intercept plus all six standardized candidates"
+            ),
+            "full_grid_prestandardization_residual_sd": residual_scale,
+            "full_grid_maximum_absolute_mean_inner_product": (
+                maximum_inner_product
+            ),
+            "replicates": config.evaluation_replicates,
+            "false_pure_calls": false_calls,
+            "abstentions": config.evaluation_replicates - false_calls,
+            "false_pure_call_rate": false_calls / config.evaluation_replicates,
+            "wilson_lower": lower,
+            "wilson_upper": upper,
+            "pure_call_counts": dict(sorted(pure_call_counts.items())),
+            "abstention_reasons": dict(sorted(reasons.items())),
+        }
+    ]
+
+
 def run_design_stress(
     config: DesignStressConfig | None = None,
     *,
@@ -768,6 +858,7 @@ def run_design_stress(
     pure_rows: list[dict[str, Any]] = []
     null_rows: list[dict[str, Any]] = []
     mixture_rows: list[dict[str, Any]] = []
+    out_of_span_rows: list[dict[str, Any]] = []
     allocation_rows: list[dict[str, Any]] = []
 
     for design_index, design in enumerate(STRESS_DESIGNS):
@@ -870,6 +961,19 @@ def run_design_stress(
             pure_rows.extend(pure)
             null_rows.extend(null)
             mixture_rows.extend(mixture)
+            out_of_span_rows.extend(
+                _out_of_span_rows(
+                    design,
+                    design_index,
+                    factor,
+                    budget,
+                    trial_signals,
+                    standardized,
+                    indices,
+                    thresholds,
+                    config,
+                )
+            )
 
     unused_overrides = set(overrides) - used_overrides
     if unused_overrides:
@@ -879,6 +983,9 @@ def run_design_stress(
     maximum_null_upper = max(float(row["wilson_upper"]) for row in null_rows)
     maximum_mixture_upper = max(
         float(row["wilson_upper"]) for row in mixture_rows
+    )
+    maximum_out_of_span_upper = max(
+        float(row["wilson_upper"]) for row in out_of_span_rows
     )
     summary = {
         "schema_version": 1,
@@ -890,6 +997,7 @@ def run_design_stress(
         "minimum_matched_pure_wilson_lower": minimum_pure_lower,
         "maximum_null_false_pure_wilson_upper": maximum_null_upper,
         "maximum_mixture_false_pure_wilson_upper": maximum_mixture_upper,
+        "maximum_out_of_span_false_pure_wilson_upper": maximum_out_of_span_upper,
         "threshold_rule": {
             "pure_signal": (
                 "best pure minus intercept-only null exceeds a familywise "
@@ -907,9 +1015,10 @@ def run_design_stress(
         },
         "scope": (
             "This immutable post-freeze sensitivity probes finite-training "
-            "plug-in variability, a no-signal null, and standardized equal "
-            "50/50 in-span mixtures. It does not establish robustness to "
-            "arbitrary out-of-span biology, nonlinear mixtures, serial "
+            "plug-in variability, a no-signal null, standardized equal "
+            "50/50 in-span mixtures, and one residualized nonlinear probe. "
+            "It does not establish robustness to arbitrary out-of-span "
+            "biology, other nonlinear mixtures, serial "
             "dependence, sensor dynamics, subject hierarchy, or sequential "
             "protocol feasibility. A mixture pure call is counted as false "
             "even when it names a constituent."
@@ -925,6 +1034,8 @@ def run_design_stress(
             == 3,
             "all_fifteen_mixtures_per_design_budget": len(mixture_rows)
             == len(STRESS_DESIGNS) * len(config.budget_factors) * 15,
+            "one_out_of_span_probe_per_design_budget": len(out_of_span_rows)
+            == len(STRESS_DESIGNS) * len(config.budget_factors),
             "all_thresholds_finite": all(
                 np.isfinite(
                     [
@@ -944,5 +1055,6 @@ def run_design_stress(
         pure_recovery=tuple(pure_rows),
         null_evaluation=tuple(null_rows),
         mixture_evaluation=tuple(mixture_rows),
+        out_of_span_evaluation=tuple(out_of_span_rows),
         allocations=tuple(allocation_rows),
     )
