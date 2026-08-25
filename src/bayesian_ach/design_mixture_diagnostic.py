@@ -392,12 +392,20 @@ def _call(
 
 def _audit_power(
     signals: NDArray[np.float64],
+    full_signals: NDArray[np.float64],
+    indices: NDArray[np.int64],
     thresholds: DiagnosticThresholds,
     *,
     config: MixtureDiagnosticConfig,
-) -> tuple[tuple[bool, ...], list[dict[str, Any]]]:
+) -> tuple[
+    tuple[bool, ...],
+    dict[tuple[int, int], bool],
+    bool,
+    bool,
+    list[dict[str, Any]],
+]:
     rows: list[dict[str, Any]] = []
-    enabled: list[bool] = []
+    candidate_enabled: list[bool] = []
     all_enabled = tuple(True for _ in DESIGN_CANDIDATE_NAMES)
     for candidate, name in enumerate(DESIGN_CANDIDATE_NAMES):
         correct = 0
@@ -425,31 +433,166 @@ def _audit_power(
             config.confidence_level,
         )
         is_enabled = lower >= config.minimum_pure_retention_wilson_lower
-        enabled.append(is_enabled)
+        candidate_enabled.append(is_enabled)
         rows.append(
             {
                 "scenario": "matched_pure",
                 "candidate": name,
+                "audit_measure": "correct_pure_retention_rate",
                 "replicates": config.calibration_audit_replicates,
-                "correct_pure_calls": correct,
+                "successes": correct,
                 "wrong_pure_calls": wrong,
                 "abstentions": (
                     config.calibration_audit_replicates - correct - wrong
                 ),
-                "correct_call_rate": (
-                    correct / config.calibration_audit_replicates
-                ),
+                "rate": correct / config.calibration_audit_replicates,
                 "wilson_lower": lower,
                 "wilson_upper": upper,
                 "minimum_wilson_lower": (
                     config.minimum_pure_retention_wilson_lower
                 ),
-                "candidate_enabled": is_enabled,
+                "contrast_enabled": is_enabled,
                 "reasons": dict(sorted(reasons.items())),
             }
         )
-    return tuple(enabled), rows
 
+    enabled_tuple = tuple(candidate_enabled)
+    null_abstentions = 0
+    null_reasons: dict[str, int] = {}
+    null_generator = np.zeros(signals.shape[0], dtype=float)
+    for replicate in range(config.calibration_audit_replicates):
+        scores = _simulate(
+            signals,
+            null_generator,
+            config=config,
+            rng=_rng(config.calibration_audit_seed, 1, replicate),
+        )
+        call, reason = _call(scores, thresholds, enabled_tuple)
+        null_abstentions += int(call is None)
+        null_reasons[reason] = null_reasons.get(reason, 0) + 1
+    null_lower, null_upper = _wilson_interval(
+        null_abstentions,
+        config.calibration_audit_replicates,
+        config.confidence_level,
+    )
+    null_enabled = (
+        null_lower >= config.minimum_rejection_power_wilson_lower
+    )
+    rows.append(
+        {
+            "scenario": "null",
+            "candidate": "null",
+            "audit_measure": "correct_abstention_rate",
+            "replicates": config.calibration_audit_replicates,
+            "successes": null_abstentions,
+            "wrong_pure_calls": (
+                config.calibration_audit_replicates - null_abstentions
+            ),
+            "abstentions": null_abstentions,
+            "rate": null_abstentions / config.calibration_audit_replicates,
+            "wilson_lower": null_lower,
+            "wilson_upper": null_upper,
+            "minimum_wilson_lower": (
+                config.minimum_rejection_power_wilson_lower
+            ),
+            "contrast_enabled": null_enabled,
+            "reasons": dict(sorted(null_reasons.items())),
+        }
+    )
+
+    pair_enabled: dict[tuple[int, int], bool] = {}
+    for pair_index, pair in enumerate(_PAIR_INDICES):
+        generator = _scaled_mixture(full_signals, *pair)[indices]
+        abstentions = 0
+        reasons: dict[str, int] = {}
+        for replicate in range(config.calibration_audit_replicates):
+            scores = _simulate(
+                signals,
+                generator,
+                config=config,
+                rng=_rng(
+                    config.calibration_audit_seed,
+                    2,
+                    pair_index,
+                    replicate,
+                ),
+            )
+            call, reason = _call(scores, thresholds, enabled_tuple)
+            abstentions += int(call is None)
+            reasons[reason] = reasons.get(reason, 0) + 1
+        lower, upper = _wilson_interval(
+            abstentions,
+            config.calibration_audit_replicates,
+            config.confidence_level,
+        )
+        is_enabled = lower >= config.minimum_rejection_power_wilson_lower
+        pair_enabled[pair] = is_enabled
+        rows.append(
+            {
+                "scenario": "fifty_fifty_mixture",
+                "candidate": (
+                    f"{DESIGN_CANDIDATE_NAMES[pair[0]]}+"
+                    f"{DESIGN_CANDIDATE_NAMES[pair[1]]}"
+                ),
+                "audit_measure": "correct_abstention_rate",
+                "replicates": config.calibration_audit_replicates,
+                "successes": abstentions,
+                "wrong_pure_calls": (
+                    config.calibration_audit_replicates - abstentions
+                ),
+                "abstentions": abstentions,
+                "rate": abstentions / config.calibration_audit_replicates,
+                "wilson_lower": lower,
+                "wilson_upper": upper,
+                "minimum_wilson_lower": (
+                    config.minimum_rejection_power_wilson_lower
+                ),
+                "contrast_enabled": is_enabled,
+                "reasons": dict(sorted(reasons.items())),
+            }
+        )
+
+    probe, _, _ = _out_of_span_probe(full_signals)
+    out_abstentions = 0
+    out_reasons: dict[str, int] = {}
+    for replicate in range(config.calibration_audit_replicates):
+        scores = _simulate(
+            signals,
+            probe[indices],
+            config=config,
+            rng=_rng(config.calibration_audit_seed, 3, replicate),
+        )
+        call, reason = _call(scores, thresholds, enabled_tuple)
+        out_abstentions += int(call is None)
+        out_reasons[reason] = out_reasons.get(reason, 0) + 1
+    out_lower, out_upper = _wilson_interval(
+        out_abstentions,
+        config.calibration_audit_replicates,
+        config.confidence_level,
+    )
+    out_enabled = out_lower >= config.minimum_rejection_power_wilson_lower
+    rows.append(
+        {
+            "scenario": "out_of_span_probe",
+            "candidate": "full_grid_orthogonalized_tanh_surprise",
+            "audit_measure": "correct_abstention_rate",
+            "replicates": config.calibration_audit_replicates,
+            "successes": out_abstentions,
+            "wrong_pure_calls": (
+                config.calibration_audit_replicates - out_abstentions
+            ),
+            "abstentions": out_abstentions,
+            "rate": out_abstentions / config.calibration_audit_replicates,
+            "wilson_lower": out_lower,
+            "wilson_upper": out_upper,
+            "minimum_wilson_lower": (
+                config.minimum_rejection_power_wilson_lower
+            ),
+            "contrast_enabled": out_enabled,
+            "reasons": dict(sorted(out_reasons.items())),
+        }
+    )
+    return enabled_tuple, pair_enabled, out_enabled, null_enabled, rows
 
 def _evaluate_pure(
     signals: NDArray[np.float64],
