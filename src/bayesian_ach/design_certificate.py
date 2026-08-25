@@ -10,6 +10,7 @@ import numpy as np
 from numpy.typing import NDArray
 from scipy.optimize import Bounds, LinearConstraint, milp
 
+from bayesian_ach.design_geometry import profiled_gaussian_log_score_gap
 from bayesian_ach.design_optimizer import optimize_maximin_design
 
 
@@ -336,6 +337,67 @@ def certify_maximin_design(
         trace=tuple(trace),
     )
 
+
+
+def population_n_eff_index(
+    residual_variance: float,
+    *,
+    effect_size: float = 1.0,
+    noise_std: float = 1.0,
+    target_log_score_gap: float = 5.0,
+) -> int:
+    """Map positive residual geometry to a population observation-equivalent index."""
+
+    values = (
+        residual_variance,
+        effect_size,
+        noise_std,
+        target_log_score_gap,
+    )
+    if not all(np.isfinite(value) for value in values):
+        raise ValueError("N_eff inputs must be finite")
+    if residual_variance <= 0.0:
+        raise ValueError("residual_variance must be positive")
+    if effect_size <= 0.0 or noise_std <= 0.0 or target_log_score_gap <= 0.0:
+        raise ValueError("effect_size, noise_std, and target_log_score_gap must be positive")
+    per_observation = profiled_gaussian_log_score_gap(
+        residual_variance,
+        effect_size=effect_size,
+        noise_std=noise_std,
+    )
+    return int(math.ceil(target_log_score_gap / per_observation))
+
+
+def population_n_eff_bracket(
+    residual_lower_bound: float,
+    residual_upper_bound: float,
+    *,
+    effect_size: float = 1.0,
+    noise_std: float = 1.0,
+    target_log_score_gap: float = 5.0,
+) -> tuple[int, int]:
+    """Return rigorous lower/upper indices induced by residual objective bounds."""
+
+    if (
+        not np.isfinite(residual_lower_bound)
+        or not np.isfinite(residual_upper_bound)
+        or residual_lower_bound <= 0.0
+        or residual_upper_bound < residual_lower_bound
+    ):
+        raise ValueError("residual bounds must be finite, positive, and ordered")
+    optimistic = population_n_eff_index(
+        residual_upper_bound,
+        effect_size=effect_size,
+        noise_std=noise_std,
+        target_log_score_gap=target_log_score_gap,
+    )
+    conservative = population_n_eff_index(
+        residual_lower_bound,
+        effect_size=effect_size,
+        noise_std=noise_std,
+        target_log_score_gap=target_log_score_gap,
+    )
+    return optimistic, conservative
 
 def certificate_matches_geometry(
     signals: NDArray[np.float64],
