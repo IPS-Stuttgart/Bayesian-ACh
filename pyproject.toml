@@ -71,6 +71,8 @@ plot = ["matplotlib>=3.8"]
 bayesian-ach = "bayesian_ach.cli_ext:main"
 bayesian-ach-design = "bayesian_ach.design_cli:main"
 bayesian-ach-design-stress = "bayesian_ach.design_stress_cli:main"
+bayesian-ach-mixture-diagnostic = "bayesian_ach.design_mixture_diagnostic_cli:main"
+bayesian-ach-verify-mixture-diagnostic = "bayesian_ach.design_mixture_diagnostic_cli:verify_main"
 bayesian-ach-replay = "bayesian_ach.replay_cli:main"
 
 [tool.setuptools.packages.find]
