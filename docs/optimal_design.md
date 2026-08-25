@@ -244,6 +244,31 @@ Certificate artifacts are versioned separately from the previously frozen
 greedy/exchange evidence. A changed certified allocation must trigger new
 recovery evidence; it must never silently replace the earlier artifact.
 
+Objective certification and planning-index certification are reported
+separately. If rigorous residual bounds are `[R_L,R_U]`, monotonicity of the
+profiled Gaussian gap gives
+
+```math
+\left\lceil\frac{B}{G(R_U)}\right\rceil
+\le N_{\mathrm{eff}} \le
+\left\lceil\frac{B}{G(R_L)}\right\rceil.
+```
+
+The rounded `N_eff` index is certified when these endpoints agree, even if a
+continuous objective run has not met a much tighter numerical residual-gap
+tolerance. This does not relabel that continuous objective as certified. The
+claim-bearing finite schedules use exact integer certificates.
+
+Frozen integer packages can be independently checked against their SHA-256
+table, allocation budget and cap, canonical 240-cell geometry, objective gap,
+cut trace, and `N_eff` rounding:
+
+```bash
+bayesian-ach-design-certificate-verify \
+  results/certified-maximin-design/n60 \
+  results/certified-maximin-design/n45
+```
+
 ## Use
 
 ```bash
