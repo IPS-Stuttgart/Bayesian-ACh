@@ -1,0 +1,50 @@
+{
+  "absolute_gap": 2.7755575615628914e-16,
+  "candidate_names": [
+    "innovation_l2",
+    "surprise",
+    "gain",
+    "update_l2",
+    "information_gain",
+    "change_probability"
+  ],
+  "certified": true,
+  "certified_improvement_over_heuristic": 0.0025656042479573204,
+  "code_repository": "IPS-Stuttgart/Bayesian-ACh",
+  "code_sha": "e82f48d335fb3f17f843d16bf2442693b6c83eef",
+  "config": {
+    "absolute_gap_tolerance": 1e-08,
+    "budget": 45,
+    "cut_violation_tolerance": 1e-09,
+    "integer": true,
+    "master_mip_relative_gap": 1e-09,
+    "master_time_limit_s": 120.0,
+    "max_iterations": 100,
+    "max_point_fraction": 0.15,
+    "relative_gap_tolerance": 1e-07
+  },
+  "cut_count": 53,
+  "direct_geometry_matches_lower_bound": true,
+  "experiment": "certified_finite_grid_maximin_allocation",
+  "grid_point_count": 240,
+  "heuristic_lower_bound": 0.24983023368504692,
+  "iterations": 7,
+  "last_master_message": "Optimization terminated successfully. (HiGHS Status 7: Optimal)",
+  "last_master_status": 0,
+  "lower_bound": 0.25239583793300424,
+  "population_n_eff": {
+    "effect_size": 1.0,
+    "index_certified": true,
+    "interpretation": "Population observation-equivalent index under effectively independent Gaussian observations; not a physical trial, time-bin, session, or animal count.",
+    "lower_index_from_residual_upper_bound": 45,
+    "noise_std": 1.0,
+    "target_log_score_gap": 5.0,
+    "upper_index_from_residual_lower_bound": 45
+  },
+  "relative_gap": 2.7755575615628914e-16,
+  "schema_version": 1,
+  "scipy_version": "1.15.3",
+  "scope": "This certificate is conditional on the independently instantiated finite grid, global candidate standardization, budget, and per-cell cap. The allocation is a count target, not a validated sequential protocol; no history constructor, washout, reset, or carry-over feasibility is implied.",
+  "solver": "scipy.optimize.milp (HiGHS) with OLS cutting planes",
+  "upper_bound": 0.2523958379330045
+}

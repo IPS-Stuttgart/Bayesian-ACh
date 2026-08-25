@@ -202,6 +202,73 @@ closed-loop timing can be incorporated by replacing the candidate matrix with
 the corresponding forward-model predictions while retaining the same auditable
 finite-allocation structure.
 
+## Certified continuous and integer follow-up
+
+The original `maximin_optimized` allocation is a deterministic greedy
+construction with at most three one-for-one exchanges. Its trace is auditable,
+but it is not a certificate of global optimality.
+
+`certify_maximin_design` supplies a separate global certificate. For each
+ordered pair,
+
+```math
+R_{k\mid l}(w)
+=
+\inf_{b,c}\sum_d w_d[x_k(d)-b-cx_l(d)]^2.
+```
+
+For any fixed `(b,c)`, the loss is linear in the allocation. The certificate
+iteratively solves a HiGHS LP or MILP master problem, evaluates exact weighted
+least squares for all ordered pairs, and adds every violated loss cut. The
+finite master gives an upper bound; the directly evaluated allocation gives a
+feasible lower bound. Results report both bounds and stop as certified only
+when their declared tolerance is met.
+
+The integer mode certifies the stated budget and per-cell count cap. The
+continuous mode certifies the capped-simplex relaxation and therefore also
+provides an upper bound for every integer allocation. Neither mode constructs a
+sequential behavioral history. The 240 cells are independently instantiated
+belief conditions; reset, washout, carry-over, and physical ordering constraints
+must be encoded before calling any count vector an executable protocol.
+
+```bash
+bayesian-ach-design-certify \
+  --output results/certified-design-n60 \
+  --code-sha <exact-commit> \
+  --budget 60 \
+  --mode integer \
+  --require-certificate
+```
+
+Certificate artifacts are versioned separately from the previously frozen
+greedy/exchange evidence. A changed certified allocation must trigger new
+recovery evidence; it must never silently replace the earlier artifact.
+
+Objective certification and planning-index certification are reported
+separately. If rigorous residual bounds are `[R_L,R_U]`, monotonicity of the
+profiled Gaussian gap gives
+
+```math
+\left\lceil\frac{B}{G(R_U)}\right\rceil
+\le N_{\mathrm{eff}} \le
+\left\lceil\frac{B}{G(R_L)}\right\rceil.
+```
+
+The rounded `N_eff` index is certified when these endpoints agree, even if a
+continuous objective run has not met a much tighter numerical residual-gap
+tolerance. This does not relabel that continuous objective as certified. The
+claim-bearing finite schedules use exact integer certificates.
+
+Frozen integer packages can be independently checked against their SHA-256
+table, allocation budget and cap, canonical 240-cell geometry, objective gap,
+cut trace, and `N_eff` rounding:
+
+```bash
+bayesian-ach-design-certificate-verify \
+  results/certified-maximin-design/n60 \
+  results/certified-maximin-design/n45
+```
+
 ## Use
 
 ```bash

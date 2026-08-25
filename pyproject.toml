@@ -70,6 +70,10 @@ plot = ["matplotlib>=3.8"]
 [project.scripts]
 bayesian-ach = "bayesian_ach.cli_ext:main"
 bayesian-ach-design = "bayesian_ach.design_cli:main"
+bayesian-ach-design-certificate-verify = "bayesian_ach.design_certificate_verify:main"
+bayesian-ach-design-certify = "bayesian_ach.design_certificate_cli:main"
+bayesian-ach-design-paired-recovery = "bayesian_ach.design_paired_recovery:main"
+bayesian-ach-design-paired-recovery-verify = "bayesian_ach.design_paired_recovery_verify:main"
 bayesian-ach-replay = "bayesian_ach.replay_cli:main"
 
 [tool.setuptools.packages.find]
