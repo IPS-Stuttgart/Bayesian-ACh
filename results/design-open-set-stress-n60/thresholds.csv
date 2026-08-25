@@ -1,0 +1,4 @@
+design,budget_schedule,budget_factor,budget,allocation_source,base_n_eff_index_from_n60_geometry,realized_minimum_pairwise_residual,realized_population_n_eff_index,pure_over_null_threshold,winner_over_runner_threshold,flexible_over_pure_threshold
+coupled_novelty,fixed_budget,,60,frozen_override,1113,0.009028563962867553,1113,0.9908053929429492,0.8374072007101319,0.9358247112625193
+uniform_factorial,fixed_budget,,60,frozen_override,93,0.11410719241875189,93,1.4841715232562613,1.043715011057646,1.335738097917563
+maximin_optimized,fixed_budget,,60,frozen_override,45,0.2500365482696447,45,1.4684378147083308,0.7589681023920747,2.074310487667276
