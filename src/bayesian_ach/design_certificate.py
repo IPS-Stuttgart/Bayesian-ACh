@@ -142,12 +142,12 @@ def _validate_initial_allocation(
 
 
 def _master_upper_bound(result: Any, *, integer: bool, incumbent: float) -> float:
-    if bool(result.success):
-        return incumbent
     if integer:
         dual = getattr(result, "mip_dual_bound", None)
         if dual is not None and np.isfinite(float(dual)):
-            return float(-float(dual))
+            return max(incumbent, float(-float(dual)))
+    if bool(result.success):
+        return incumbent
     return math.inf
 
 
@@ -198,8 +198,8 @@ def certify_maximin_design(
         key = (
             cut.generator,
             cut.alternative,
-            round(cut.intercept, 12),
-            round(cut.slope, 12),
+            cut.intercept.hex(),
+            cut.slope.hex(),
         )
         if key in cut_keys:
             return False
