@@ -2,6 +2,14 @@
 
 All notable changes to Bayesian-ACh will be documented here.
 
+## Unreleased
+
+- Corrected maximin planning diagnostics for the candidate-specific residual
+  variances used by held-out recovery: the exact asymptotic per-trial quantity
+  is the profiled Gaussian log-score gap `0.5 log1p(a^2 R / sigma^2)`, not a
+  fixed-variance expected log Bayes factor.
+- Renamed exported rate/target fields, retained deprecated Python/CLI aliases,
+  and documented/tested affine reparameterization equivalence.
 ## 0.7.0 — 2026-08-23
 
 - Added a transparent finite-grid optimizer for prospective discrimination of
