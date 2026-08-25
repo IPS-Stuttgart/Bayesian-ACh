@@ -20,7 +20,13 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--replicates", type=int, default=200)
     parser.add_argument("--effect-size", type=float, default=1.0)
     parser.add_argument("--noise-std", type=float, default=1.0)
-    parser.add_argument("--target-log-bf", type=float, default=5.0)
+    parser.add_argument("--target-log-score-gap", type=float, default=5.0)
+    parser.add_argument(
+        "--target-log-bf",
+        type=float,
+        default=None,
+        help="Deprecated alias for --target-log-score-gap.",
+    )
     parser.add_argument("--max-point-fraction", type=float, default=0.15)
     parser.add_argument("--seed", type=int, default=7)
     return parser
@@ -34,6 +40,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             replicates_per_generator=args.replicates,
             effect_size=args.effect_size,
             noise_std=args.noise_std,
+            target_log_score_gap=args.target_log_score_gap,
             target_log_bf=args.target_log_bf,
             max_point_fraction=args.max_point_fraction,
             seed=args.seed,
