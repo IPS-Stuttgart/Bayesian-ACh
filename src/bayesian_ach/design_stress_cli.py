@@ -362,6 +362,21 @@ def main(argv: Sequence[str] | None = None) -> int:
         overrides[key] = counts
         provenance.append(item)
     result = run_design_stress(config, allocation_overrides=overrides)
+    locked_items = [
+        item
+        for item in provenance
+        if item.get("kind") == "chronologically_locked_primary_design_allocation"
+    ]
+    if locked_items:
+        result.summary["primary_schedule_provenance"] = locked_items[0]
+        result.summary["technical_gates"][
+            "chronologically_locked_primary_allocation_verified"
+        ] = True
+        result.summary["primary_schedule_chronology"] = (
+            "The equal-N60 allocation and its source commit were frozen in the "
+            "accepted five-seed benchmark before certificate and stress results; "
+            "no later certified schedule replaces this primary allocation."
+        )
     _write_artifact(
         args.output.resolve(),
         result=result,
