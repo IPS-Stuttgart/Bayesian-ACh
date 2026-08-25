@@ -9,9 +9,11 @@ from bayesian_ach.design import (
     generate_transition_design_grid,
     optimize_maximin_design,
     pairwise_residual_matrix,
+    profiled_gaussian_log_score_gap,
     uniform_factorial_design,
 )
 from bayesian_ach.design_benchmark import DesignBenchmarkConfig, run_design_benchmark
+from bayesian_ach.design_recovery import _fit_and_score
 
 
 def test_design_grid_is_finite_and_dissociates_all_candidates() -> None:
@@ -63,6 +65,103 @@ def test_equal_budget_recovery_beats_coupled_novelty() -> None:
     assert mean["maximin_optimized"] > mean["coupled_novelty"]
     assert result.summary["optimized_over_novelty_residual_ratio"] > 10.0
 
+
+def test_profiled_gaussian_gap_and_default_trial_targets() -> None:
+    rows, _, standardized = generate_transition_design_grid()
+    budget = 60
+    optimized = optimize_maximin_design(standardized, budget)
+    diagnostics = {
+        "maximin_optimized": optimized.diagnostics,
+        "uniform_factorial": design_diagnostics(
+            standardized,
+            uniform_factorial_design(len(rows), budget, seed=7),
+        ),
+        "coupled_novelty": design_diagnostics(
+            standardized,
+            coupled_novelty_design(rows, budget),
+        ),
+    }
+
+    assert profiled_gaussian_log_score_gap(
+        0.25,
+        effect_size=1.0,
+        noise_std=1.0,
+    ) == pytest.approx(0.5 * np.log1p(0.25))
+    assert {
+        name: value.trials_for_expected_log_score_gap_target
+        for name, value in diagnostics.items()
+    } == {
+        "maximin_optimized": 45,
+        "uniform_factorial": 93,
+        "coupled_novelty": 1113,
+    }
+    assert optimized.diagnostics.expected_log_bf_per_trial == (
+        optimized.diagnostics.expected_profiled_log_score_gap_per_trial
+    )
+    legacy = design_diagnostics(
+        standardized,
+        optimized.counts,
+        target_log_bf=5.0,
+    )
+    assert legacy.trial_count == optimized.diagnostics.trial_count
+    assert legacy.trials_for_expected_log_score_gap_target == (
+        optimized.diagnostics.trials_for_expected_log_score_gap_target
+    )
+    assert legacy.minimum_pairwise_residual_variance == pytest.approx(
+        optimized.diagnostics.minimum_pairwise_residual_variance,
+        abs=1e-12,
+    )
+    assert legacy.expected_profiled_log_score_gap_per_trial == pytest.approx(
+        optimized.diagnostics.expected_profiled_log_score_gap_per_trial,
+        abs=1e-12,
+    )
+    assert "expected_log_bf_per_trial" not in legacy.as_dict()
+
+
+def test_pairwise_residual_identifies_affine_equivalence_on_support() -> None:
+    alternative = np.array([-1.0, 0.0, 1.0, 2.0])
+    affine_generator = 2.0 + 3.0 * alternative
+    nonaffine_generator = np.array([0.0, 1.0, 0.0, 2.0])
+    constant_alternative = np.ones(4)
+    signals = np.column_stack(
+        (alternative, affine_generator, nonaffine_generator, constant_alternative)
+    )
+    residual = pairwise_residual_matrix(signals, np.ones(4, dtype=np.int64))
+
+    assert residual[1, 0] == pytest.approx(0.0, abs=1e-12)
+    assert residual[2, 0] > 0.0
+    assert residual[2, 3] == pytest.approx(np.var(nonaffine_generator))
+    assert residual[3, 0] == pytest.approx(0.0, abs=1e-12)
+
+def test_affine_reparameterization_preserves_geometry_and_profiled_scores() -> None:
+    _, _, standardized = generate_transition_design_grid()
+    shifts = np.linspace(-4.0, 3.0, standardized.shape[1])
+    scales = np.array([0.5, -1.5, 2.0, -0.75, 3.0, -2.5])
+    transformed = standardized * scales + shifts
+    transformed = (transformed - transformed.mean(axis=0)) / transformed.std(axis=0)
+    baseline = optimize_maximin_design(standardized, 24, exchange_passes=1)
+    affine = optimize_maximin_design(transformed, 24, exchange_passes=1)
+
+    np.testing.assert_array_equal(affine.counts, baseline.counts)
+    np.testing.assert_allclose(
+        pairwise_residual_matrix(transformed, affine.counts),
+        pairwise_residual_matrix(standardized, baseline.counts),
+        atol=1e-12,
+    )
+
+    trial_signals = standardized[np.repeat(np.arange(len(baseline.counts)), baseline.counts)]
+    response = 0.7 * trial_signals[:, 2] + np.linspace(-0.2, 0.2, len(trial_signals))
+    train = np.arange(0, 16, dtype=np.int64)
+    test = np.arange(16, len(trial_signals), dtype=np.int64)
+    winner, margin = _fit_and_score(trial_signals, response, train, test)
+    affine_winner, affine_margin = _fit_and_score(
+        trial_signals * scales + shifts,
+        response,
+        train,
+        test,
+    )
+    assert affine_winner == winner
+    assert affine_margin == pytest.approx(margin, abs=1e-10)
 
 def test_invalid_budget_and_allocation_are_rejected() -> None:
     _, _, standardized = generate_transition_design_grid(

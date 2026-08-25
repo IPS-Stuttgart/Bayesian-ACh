@@ -1,4 +1,4 @@
-"""Finite-design covariance and expected evidence geometry."""
+"""Finite-design covariance and profiled Gaussian score geometry."""
 
 from __future__ import annotations
 
@@ -20,8 +20,20 @@ class DesignDiagnostics:
     minimum_pairwise_residual_variance: float
     covariance_condition_number: float
     covariance_log_determinant: float
-    expected_log_bf_per_trial: float
-    trials_for_expected_log_bf_target: int
+    expected_profiled_log_score_gap_per_trial: float
+    trials_for_expected_log_score_gap_target: int
+
+    @property
+    def expected_log_bf_per_trial(self) -> float:
+        """Deprecated compatibility alias for the profiled log-score gap."""
+
+        return self.expected_profiled_log_score_gap_per_trial
+
+    @property
+    def trials_for_expected_log_bf_target(self) -> int:
+        """Deprecated compatibility alias for the profiled log-score target."""
+
+        return self.trials_for_expected_log_score_gap_target
 
     def as_dict(self) -> dict[str, float | int]:
         return asdict(self)
@@ -77,7 +89,53 @@ def pairwise_residuals_from_covariance(
                     float(variance[generator])
                     - float(covariance[generator, alternative]) ** 2 / denominator,
                 )
+            else:
+                # A constant alternative adds nothing beyond the fitted intercept.
+                result[generator, alternative] = float(variance[generator])
     return result
+
+
+def profiled_gaussian_log_score_gap(
+    residual_variance: float,
+    *,
+    effect_size: float,
+    noise_std: float,
+) -> float:
+    """Return the population-optimal gap with candidate-specific variance.
+
+    The generating candidate has residual variance sigma squared. An
+    alternative whose signal leaves projection residual R has profiled
+    variance sigma squared plus a squared times R. Their expected held-out
+    Gaussian log-score gap is 0.5 log1p(a squared R / sigma squared).
+    """
+
+    residual = float(residual_variance)
+    amplitude = float(effect_size)
+    noise = float(noise_std)
+    if not np.isfinite(residual) or residual < 0.0:
+        raise ValueError("residual_variance must be finite and nonnegative")
+    if not np.isfinite(amplitude):
+        raise ValueError("effect_size must be finite")
+    if not np.isfinite(noise) or noise <= 0.0:
+        raise ValueError("noise_std must be finite and positive")
+    return 0.5 * math.log1p(amplitude**2 * residual / noise**2)
+
+
+def _resolve_log_score_target(
+    target_log_score_gap: float,
+    target_log_bf: float | None,
+) -> float:
+    target = float(target_log_score_gap)
+    if target_log_bf is not None:
+        alias = float(target_log_bf)
+        if target != 5.0 and not math.isclose(target, alias):
+            raise ValueError(
+                "target_log_score_gap and deprecated target_log_bf disagree"
+            )
+        target = alias
+    if not np.isfinite(target) or target <= 0.0:
+        raise ValueError("target_log_score_gap must be finite and positive")
+    return target
 
 
 def diagnostics_from_covariance(
@@ -87,16 +145,20 @@ def diagnostics_from_covariance(
     support_size: int,
     effect_size: float,
     noise_std: float,
-    target_log_bf: float,
+    target_log_score_gap: float = 5.0,
+    target_log_bf: float | None = None,
 ) -> DesignDiagnostics:
-    """Summarize identifiability and Gaussian expected-evidence geometry."""
+    """Summarize identifiability and population-optimal log-score geometry."""
 
     if trial_count < 1:
         return DesignDiagnostics(
             0, 0, 0.0, 1.0, 0.0, math.inf, -math.inf, 0.0, 2**31 - 1
         )
-    if noise_std <= 0.0:
-        raise ValueError("noise_std must be positive")
+    target = _resolve_log_score_target(target_log_score_gap, target_log_bf)
+    if not np.isfinite(effect_size):
+        raise ValueError("effect_size must be finite")
+    if not np.isfinite(noise_std) or noise_std <= 0.0:
+        raise ValueError("noise_std must be finite and positive")
     variance = np.maximum(np.diag(covariance), 0.0)
     residuals = pairwise_residuals_from_covariance(covariance)
     off_diagonal = ~np.eye(covariance.shape[0], dtype=bool)
@@ -110,11 +172,15 @@ def diagnostics_from_covariance(
     )
     maximum_correlation = float(np.max(np.abs(correlations[off_diagonal])))
     eigenvalues = np.maximum(np.linalg.eigvalsh(covariance), 1e-12)
-    expected_per_trial = effect_size**2 * minimum_residual / (2.0 * noise_std**2)
+    expected_per_trial = profiled_gaussian_log_score_gap(
+        minimum_residual,
+        effect_size=effect_size,
+        noise_std=noise_std,
+    )
     required = (
         2**31 - 1
         if expected_per_trial <= 1e-15
-        else int(math.ceil(target_log_bf / expected_per_trial))
+        else int(math.ceil(target / expected_per_trial))
     )
     return DesignDiagnostics(
         trial_count=trial_count,
@@ -124,8 +190,8 @@ def diagnostics_from_covariance(
         minimum_pairwise_residual_variance=minimum_residual,
         covariance_condition_number=float(np.max(eigenvalues) / np.min(eigenvalues)),
         covariance_log_determinant=float(np.sum(np.log(eigenvalues))),
-        expected_log_bf_per_trial=expected_per_trial,
-        trials_for_expected_log_bf_target=required,
+        expected_profiled_log_score_gap_per_trial=expected_per_trial,
+        trials_for_expected_log_score_gap_target=required,
     )
 
 
@@ -135,7 +201,8 @@ def design_diagnostics(
     *,
     effect_size: float = 1.0,
     noise_std: float = 1.0,
-    target_log_bf: float = 5.0,
+    target_log_score_gap: float = 5.0,
+    target_log_bf: float | None = None,
 ) -> DesignDiagnostics:
     """Evaluate one allocation without expanding individual trials."""
 
@@ -153,6 +220,7 @@ def design_diagnostics(
         support_size=int(np.sum(allocation > 0)),
         effect_size=effect_size,
         noise_std=noise_std,
+        target_log_score_gap=target_log_score_gap,
         target_log_bf=target_log_bf,
     )
 

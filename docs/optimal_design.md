@@ -61,13 +61,23 @@ y=a x_k+\epsilon,
 \epsilon\sim\mathcal N(0,\sigma^2),
 ```
 
-the expected held-out log-evidence separation from candidate $`l`$, per trial,
-is
+the generating candidate has residual variance $`\sigma^2`$, whereas the
+alternative's population-optimal profiled residual variance is
+$`\sigma^2+a^2R_{k\mid l}(w)`$. Because the recovery code estimates a separate
+training residual variance for every candidate, the corresponding expected
+held-out Gaussian log-score gap per trial is
 
 ```math
-\frac{a^2}{2\sigma^2}R_{k\mid l}(w).
+G_{k\mid l}(w)
+=
+\frac{1}{2}\log\!\left(
+1+\frac{a^2R_{k\mid l}(w)}{\sigma^2}
+\right).
 ```
 
+The earlier linear expression $`a^2R/(2\sigma^2)`$ is only the first-order
+small-residual expansion of this profiled-variance gap; it is not a Bayes
+factor.
 The primary design criterion is therefore
 
 ```math
@@ -76,8 +86,35 @@ The primary design criterion is therefore
 
 This directly optimizes the worst candidate confusion rather than average
 variance or a global determinant that can hide one nearly indistinguishable
-pair.
+pair. For fixed $`a/\sigma`$, $`G`$ is strictly increasing in $`R`$, so the
+maximin allocation and all residual-ratio comparisons are unchanged by the
+profiled-variance correction.
 
+### Affine-equivalence and identification proposition
+
+For $`\mathrm{Var}_w(x_l)>0`$, the ordered residual has the projection
+interpretation
+
+```math
+R_{k\mid l}(w)
+=
+\min_{b,c}\;\mathbb E_w[(x_k-b-cx_l)^2].
+```
+
+Hence $`R_{k\mid l}=0`$ if and only if $`x_k=b+cx_l`$ almost surely on the
+positive-weight design support. If $`x_l`$ is constant, it adds nothing beyond
+the fitted intercept and the implementation sets
+$`R_{k\mid l}=\mathrm{Var}_w(x_k)`$; a constant generator consequently has
+zero residual against every alternative.
+
+Every candidate recovery fit contains an intercept and a free slope. Replacing
+a candidate column by $`b+c x`$ with $`c\ne0`$ therefore leaves its affine
+column space, fitted predictions, candidate-specific residual variance, and
+held-out Gaussian log score unchanged. Independently z-standardizing the
+declared candidate columns also leaves every residual geometry and the optimized
+allocation unchanged under such affine reparameterizations (including sign
+reversal). This invariance does not justify unequal biological amplitudes:
+$`a`$ remains a prespecified effect per standardized candidate unit.
 ## Integer allocation algorithm
 
 `optimize_maximin_design` uses deterministic greedy allocation followed by
@@ -128,25 +165,26 @@ Gaussian response model or any candidate is biologically correct.
 ## Quantitative trial guidance
 
 The geometry also converts a prespecified signal-to-noise ratio into a transparent
-first-order trial target. For desired expected log Bayes factor $`B`$, the
-worst-pair approximation is
+asymptotic trial target. For desired cumulative expected profiled Gaussian
+log-score gap $`B`$, the worst-pair diagnostic is
 
 ```math
 N_{B}
 =
 \left\lceil
-\frac{2\sigma^2 B}
-     {a^2\min_{k\ne l}R_{k\mid l}(w)}
+\frac{B}
+     {\frac12\log\left(
+       1+a^2\min_{k\ne l}R_{k\mid l}(w)/\sigma^2
+     \right)}
 \right\rceil.
 ```
 
 At unit standardized amplitude, unit noise, and $`B=5`$, the default residuals
-correspond to approximately 40 trials for the maximin design, 88 for the seeded
-uniform factorial design, and 1,112 for the coupled-novelty design. These values
-are planning diagnostics, not retrospective power guarantees: serial dependence,
+correspond to 45 trials for the maximin design, 93 for the seeded uniform
+factorial design, and 1,113 for the coupled-novelty design. These values are
+planning diagnostics, not retrospective power guarantees: serial dependence,
 subject variation, sensor convolution, missing trials, and model misspecification
 must be included in a study-specific simulation before animal numbers are fixed.
-
 ## Scaling assumption and sensitivity requirement
 
 Global standardization gives each computational candidate one unit of variation

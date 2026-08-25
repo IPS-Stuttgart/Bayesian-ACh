@@ -4,6 +4,7 @@ from bayesian_ach.design_geometry import (
     DesignDiagnostics,
     design_diagnostics,
     pairwise_residual_matrix,
+    profiled_gaussian_log_score_gap,
 )
 from bayesian_ach.design_grid import (
     DESIGN_CANDIDATE_NAMES,
@@ -24,5 +25,6 @@ __all__ = [
     "generate_transition_design_grid",
     "optimize_maximin_design",
     "pairwise_residual_matrix",
+    "profiled_gaussian_log_score_gap",
     "uniform_factorial_design",
 ]
