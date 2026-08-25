@@ -9,16 +9,7 @@ import numpy as np
 import pytest
 
 import bayesian_ach.design_stress as stress
-from bayesian_ach.design_stress import (
-    DesignStressConfig,
-    _Scores,
-    _Thresholds,
-    _call,
-    _calibrate_thresholds,
-    _upper_conformal_quantile,
-    _wilson_interval,
-    run_design_stress,
-)
+from bayesian_ach.design_stress import DesignStressConfig, run_design_stress
 from bayesian_ach.design_stress_cli import (
     _load_certified_allocation,
     _write_artifact,
@@ -26,12 +17,12 @@ from bayesian_ach.design_stress_cli import (
 
 
 def test_gate_requires_signal_separation_and_pure_adequacy() -> None:
-    thresholds = _Thresholds(
+    thresholds = stress._Thresholds(
         pure_over_null=1.0,
         winner_over_runner=1.0,
         flexible_over_pure=1.0,
     )
-    decisive = _Scores(
+    decisive = stress._Scores(
         winner=2,
         runner=1,
         best_pure_score=5.0,
@@ -40,20 +31,20 @@ def test_gate_requires_signal_separation_and_pure_adequacy() -> None:
         flexible_score=5.5,
         ridge_lambda=0.1,
     )
-    assert _call(decisive, thresholds) == (2, "pure_call")
+    assert stress._call(decisive, thresholds) == (2, "pure_call")
 
     no_signal = replace(decisive, best_pure_score=1.0)
     ambiguous = replace(decisive, runner_score=4.0)
     misspecified = replace(decisive, flexible_score=6.01)
-    assert _call(no_signal, thresholds) == (None, "null_not_rejected")
-    assert _call(ambiguous, thresholds) == (None, "pure_ambiguity")
-    assert _call(misspecified, thresholds) == (None, "flexible_model_better")
+    assert stress._call(no_signal, thresholds) == (None, "null_not_rejected")
+    assert stress._call(ambiguous, thresholds) == (None, "pure_ambiguity")
+    assert stress._call(misspecified, thresholds) == (None, "flexible_model_better")
 
 
 def test_conformal_threshold_and_wilson_interval_are_conservative() -> None:
-    assert _upper_conformal_quantile(list(range(20)), alpha=0.05) == 19.0
-    assert _upper_conformal_quantile(list(range(10)), alpha=0.05) == np.inf
-    lower, upper = _wilson_interval(0, 100, 0.95)
+    assert stress._upper_conformal_quantile(list(range(20)), alpha=0.05) == 19.0
+    assert stress._upper_conformal_quantile(list(range(10)), alpha=0.05) == np.inf
+    lower, upper = stress._wilson_interval(0, 100, 0.95)
     assert lower == pytest.approx(0.0)
     assert 0.03 < upper < 0.04
 
@@ -69,7 +60,7 @@ def test_threshold_calibration_is_finite_with_minimum_replicates() -> None:
         evaluation_replicates=20,
         inner_folds=2,
     )
-    thresholds = _calibrate_thresholds(
+    thresholds = stress._calibrate_thresholds(
         signals,
         config=config,
         design_index=0,
@@ -83,6 +74,15 @@ def test_threshold_calibration_is_finite_with_minimum_replicates() -> None:
         ]
     ).all()
     assert thresholds.flexible_over_pure >= 0.0
+
+
+def test_nonlinear_probe_is_outside_full_grid_linear_span() -> None:
+    _, _, signals = stress.generate_transition_design_grid()
+    probe, scale, maximum_inner_product = stress._out_of_span_probe(signals)
+    assert probe.shape == (signals.shape[0],)
+    assert scale > 0.0
+    assert np.std(probe) == pytest.approx(1.0)
+    assert maximum_inner_product < 1.0e-12
 
 
 def _mock_small_run(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -110,7 +110,7 @@ def _mock_small_run(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         stress,
         "_calibrate_thresholds",
-        lambda *args, **kwargs: _Thresholds(1.0, 1.0, 1.0),
+        lambda *args, **kwargs: stress._Thresholds(1.0, 1.0, 1.0),
     )
     monkeypatch.setattr(
         stress,
@@ -194,6 +194,29 @@ def _mock_small_run(monkeypatch: pytest.MonkeyPatch) -> None:
         return pure, null, mixture
 
     monkeypatch.setattr(stress, "_evaluation_rows", evaluations)
+    monkeypatch.setattr(
+        stress,
+        "_out_of_span_rows",
+        lambda design, _index, factor, budget, *_args: [
+            {
+                "design": design,
+                "budget_factor": factor,
+                "budget": budget,
+                "probe": "test",
+                "probe_definition": "test",
+                "full_grid_prestandardization_residual_sd": 0.1,
+                "full_grid_maximum_absolute_mean_inner_product": 0.0,
+                "replicates": 20,
+                "false_pure_calls": 1,
+                "abstentions": 19,
+                "false_pure_call_rate": 0.05,
+                "wilson_lower": 0.01,
+                "wilson_upper": 0.24,
+                "pure_call_counts": {},
+                "abstention_reasons": {"null_not_rejected": 19, "pure_call": 1},
+            }
+        ],
+    )
 
 
 def test_stress_orchestration_covers_every_design_and_pair(
@@ -215,6 +238,7 @@ def test_stress_orchestration_covers_every_design_and_pair(
     assert result.summary["technical_gates"] == {
         "calibration_and_evaluation_seeds_disjoint": True,
         "all_fifteen_mixtures_per_design_budget": True,
+        "one_out_of_span_probe_per_design_budget": True,
         "all_thresholds_finite": True,
     }
 
@@ -298,6 +322,7 @@ def test_artifact_writer_hashes_every_payload(tmp_path: Path) -> None:
         pure_recovery=one_row,
         null_evaluation=one_row,
         mixture_evaluation=one_row,
+        out_of_span_evaluation=one_row,
         allocations=one_row,
     )
     output = tmp_path / "artifact"
@@ -312,7 +337,7 @@ def test_artifact_writer_hashes_every_payload(tmp_path: Path) -> None:
     manifest = json.loads((output / "artifact_manifest.json").read_text())
     assert manifest["producer_commit"] == "a" * 40
     assert manifest["producer_git_dirty"] is False
-    assert len(manifest["files"]) == 7
+    assert len(manifest["files"]) == 8
     checksums = list(csv.DictReader((output / "SHA256SUMS.csv").open()))
     assert {row["path"] for row in checksums} == {
         "summary.json",
@@ -321,6 +346,7 @@ def test_artifact_writer_hashes_every_payload(tmp_path: Path) -> None:
         "pure_recovery.csv",
         "null_evaluation.csv",
         "mixture_evaluation.csv",
+        "out_of_span_evaluation.csv",
         "allocations.csv",
         "artifact_manifest.json",
     }
