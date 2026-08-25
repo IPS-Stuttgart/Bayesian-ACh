@@ -181,7 +181,7 @@ def _load_locked_design_allocation(
     if observed_sha256 != expected_sha256:
         raise ValueError("locked design allocation SHA-256 mismatch")
     point_count = len(generate_transition_design_grid()[0])
-    counts = {
+    counts: dict[str, NDArray[np.int64]] = {
         design: np.zeros(point_count, dtype=np.int64)
         for design in STRESS_DESIGNS
     }
