@@ -325,14 +325,14 @@ def test_locked_primary_allocation_is_hash_bound(
     )
     path = tmp_path / "locked.csv"
     rows = [
-        {"seed": 7, "design": design, "point_id": point, "count": 1}
+        {"design": design, "point_id": point, "count": 1}
         for design in stress.STRESS_DESIGNS
         for point in (0, 2)
     ]
     with path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(
             handle,
-            fieldnames=("seed", "design", "point_id", "count"),
+            fieldnames=("design", "point_id", "count"),
         )
         writer.writeheader()
         writer.writerows(rows)
@@ -341,10 +341,13 @@ def test_locked_primary_allocation_is_hash_bound(
         path,
         expected_sha256=expected,
         source_code_sha="b" * 40,
+        allocation_seed=7,
     )
     assert set(overrides) == {(design, 2) for design in stress.STRESS_DESIGNS}
     assert provenance["allocation_sha256"] == expected
-    assert provenance["seeds"] == ["7"]
+    assert provenance["allocation_seed"] == 7
+    assert provenance["allocation_seed_source"] == "explicit_cli_metadata"
+    assert provenance["allocation_file_seed_field_present"] is False
     assert provenance["construction_contract"] == {
         "allocation_seed": 7,
         "maximin_max_point_fraction": 0.15,
@@ -361,12 +364,20 @@ def test_locked_primary_allocation_is_hash_bound(
             path,
             expected_sha256="0" * 64,
             source_code_sha="b" * 40,
+            allocation_seed=7,
+        )
+    with pytest.raises(ValueError, match="seed does not match"):
+        _load_locked_design_allocation(
+            path,
+            expected_sha256=expected,
+            source_code_sha="b" * 40,
+            allocation_seed=8,
         )
 
     altered_rows = [
-        {"seed": 7, "design": "coupled_novelty", "point_id": 0, "count": 2},
+        {"design": "coupled_novelty", "point_id": 0, "count": 2},
         *[
-            {"seed": 7, "design": design, "point_id": point, "count": 1}
+            {"design": design, "point_id": point, "count": 1}
             for design in ("uniform_factorial", "maximin_optimized")
             for point in (0, 2)
         ],
@@ -374,7 +385,7 @@ def test_locked_primary_allocation_is_hash_bound(
     with path.open("w", newline="", encoding="utf-8") as handle:
         writer = csv.DictWriter(
             handle,
-            fieldnames=("seed", "design", "point_id", "count"),
+            fieldnames=("design", "point_id", "count"),
         )
         writer.writeheader()
         writer.writerows(altered_rows)
@@ -384,6 +395,7 @@ def test_locked_primary_allocation_is_hash_bound(
             path,
             expected_sha256=altered_sha,
             source_code_sha="b" * 40,
+            allocation_seed=7,
         )
 
 
