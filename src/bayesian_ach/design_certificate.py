@@ -192,7 +192,7 @@ def certify_maximin_design(
     heuristic_lower = best_lower
 
     cuts: list[_PairCut] = []
-    cut_keys: set[tuple[int, int, float, float]] = set()
+    cut_keys: set[tuple[int, int, str, str]] = set()
 
     def add_cut(cut: _PairCut) -> bool:
         key = (
