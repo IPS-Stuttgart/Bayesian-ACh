@@ -1,4 +1,4 @@
-"""Finite-design covariance and expected evidence geometry."""
+"""Finite-design covariance and profiled Gaussian score geometry."""
 
 from __future__ import annotations
 
@@ -133,6 +133,7 @@ def _resolve_log_score_target(
     if not np.isfinite(target) or target <= 0.0:
         raise ValueError("target_log_score_gap must be finite and positive")
     return target
+
 
 def diagnostics_from_covariance(
     covariance: NDArray[np.float64],
