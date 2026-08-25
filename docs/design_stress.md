@@ -10,9 +10,11 @@ recovery into biological evidence.
 
 The primary run evaluates the chronologically earlier, equal-budget 60-draw
 allocation frozen for the five-seed paper benchmark. The CLI verifies the exact
-allocation-file SHA-256 and source-code commit, loads all three designs from that
-file, and reconstructs all three deterministic constructors before accepting the
-counts. The accepted summary did not serialize the optimizer cap, so this contract
+allocation-file SHA-256, source-code commit, and explicit seed metadata, loads all
+three designs from that file, and reconstructs all three deterministic constructors
+before accepting the counts. The accepted CSV does not itself contain a seed
+column, so the seed is a required CLI input recorded in provenance rather than an
+invented file field. The accepted summary did not serialize the optimizer cap, so this contract
 also records the source-code setting: the maximin constructor uses
 `max_point_fraction=0.15` (a cap of 9 at N=60), while the cap does not apply to
 the coupled-novelty or uniform-factorial comparators. In the frozen file the
@@ -111,7 +113,8 @@ bayesian-ach-design-stress \
   --fixed-budgets 60 \
   --locked-allocation /absolute/path/optimal_design_allocation_seed7.csv \
   --locked-allocation-sha256 <frozen-64-character-sha256> \
-  --locked-design-code-sha <40-character-design-commit>
+  --locked-design-code-sha <40-character-design-commit> \
+  --locked-allocation-seed 7
 ```
 
 The command refuses a dirty or mismatched checkout. It writes the configuration,
