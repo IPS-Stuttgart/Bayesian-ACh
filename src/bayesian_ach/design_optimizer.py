@@ -41,7 +41,8 @@ def optimize_maximin_design(
     exchange_passes: int = 3,
     effect_size: float = 1.0,
     noise_std: float = 1.0,
-    target_log_bf: float = 5.0,
+    target_log_score_gap: float = 5.0,
+    target_log_bf: float | None = None,
 ) -> OptimizedDesign:
     """Allocate trials greedily, then refine by deterministic one-for-one swaps."""
 
@@ -71,6 +72,7 @@ def optimize_maximin_design(
             support_size=support_size,
             effect_size=effect_size,
             noise_std=noise_std,
+            target_log_score_gap=target_log_score_gap,
             target_log_bf=target_log_bf,
         )
 
