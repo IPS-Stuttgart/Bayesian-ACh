@@ -512,6 +512,10 @@ def _calibrate_thresholds(
     )
 
 
+def _budget_schedule(factor: float | None) -> str:
+    return "fixed_budget" if factor is None else "n_eff_factor"
+
+
 def _calibration_audit_rows(
     design: str,
     design_index: int,
@@ -546,7 +550,7 @@ def _calibration_audit_rows(
     rows.append(
         {
             "design": design,
-            "budget_schedule": "fixed_budget" if factor is None else "n_eff_factor",
+            "budget_schedule": _budget_schedule(factor),
             "budget_factor": factor,
             "budget": budget,
             "scenario": "null",
@@ -590,8 +594,8 @@ def _calibration_audit_rows(
         rows.append(
             {
                 "design": design,
-                "budget_schedule": "fixed_budget" if factor is None else "n_eff_factor",
-            "budget_factor": factor,
+                "budget_schedule": _budget_schedule(factor),
+                "budget_factor": factor,
                 "budget": budget,
                 "scenario": "matched_pure",
                 "generator": name,
@@ -610,7 +614,7 @@ def _calibration_audit_rows(
 def _evaluation_rows(
     design: str,
     design_index: int,
-    factor: float,
+    factor: float | None,
     budget: int,
     trial_signals: NDArray[np.float64],
     full_grid_signals: NDArray[np.float64],
@@ -657,8 +661,8 @@ def _evaluation_rows(
         pure_rows.append(
             {
                 "design": design,
-                "budget_schedule": "fixed_budget" if factor is None else "n_eff_factor",
-            "budget_factor": factor,
+                "budget_schedule": _budget_schedule(factor),
+                "budget_factor": factor,
                 "budget": budget,
                 "generator": name,
                 "replicates": config.evaluation_replicates,
@@ -701,7 +705,7 @@ def _evaluation_rows(
     null_rows = [
         {
             "design": design,
-            "budget_schedule": "fixed_budget" if factor is None else "n_eff_factor",
+            "budget_schedule": _budget_schedule(factor),
             "budget_factor": factor,
             "budget": budget,
             "replicates": config.evaluation_replicates,
@@ -753,8 +757,8 @@ def _evaluation_rows(
         mixture_rows.append(
             {
                 "design": design,
-                "budget_schedule": "fixed_budget" if factor is None else "n_eff_factor",
-            "budget_factor": factor,
+                "budget_schedule": _budget_schedule(factor),
+                "budget_factor": factor,
                 "budget": budget,
                 "first_candidate": DESIGN_CANDIDATE_NAMES[first],
                 "second_candidate": DESIGN_CANDIDATE_NAMES[second],
@@ -801,7 +805,7 @@ def _out_of_span_probe(
 def _out_of_span_rows(
     design: str,
     design_index: int,
-    factor: float,
+    factor: float | None,
     budget: int,
     trial_signals: NDArray[np.float64],
     full_grid_signals: NDArray[np.float64],
@@ -842,7 +846,7 @@ def _out_of_span_rows(
     return [
         {
             "design": design,
-            "budget_schedule": "fixed_budget" if factor is None else "n_eff_factor",
+            "budget_schedule": _budget_schedule(factor),
             "budget_factor": factor,
             "budget": budget,
             "probe": "full_grid_orthogonalized_tanh_surprise",
