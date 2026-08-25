@@ -1,6 +1,6 @@
 """Public prospective experimental-design API."""
 
-from bayesian_ach.design_geometry import (
+from bayesian_ach.design_certificate import (\n    CertifiedDesignConfig,\n    MaximinCertificate,\n    certificate_matches_geometry,\n    certify_maximin_design,\n)\nfrom bayesian_ach.design_geometry import (
     DesignDiagnostics,
     design_diagnostics,
     pairwise_residual_matrix,
