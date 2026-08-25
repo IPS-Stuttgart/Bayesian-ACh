@@ -1,0 +1,99 @@
+{
+  "audit_power_definitions": {
+    "matched_pure": "correct pure-call retention rate",
+    "minimum_wilson_lower": 0.7,
+    "mixture_pair": "correct abstention rate for that exact pair",
+    "null": "correct abstention rate",
+    "out_of_span": "correct abstention rate for the fixed probe"
+  },
+  "budget": 60,
+  "calibration_rule": {
+    "alpha": 0.05,
+    "composite_family": "maximum held-out score across all 15 nonnegative pairs, calibrated separately under each matched pure candidate",
+    "pure_over_null_family": "maximum over six pure candidates",
+    "rank": 191,
+    "residual_gof_family": "candidate-specific cross-fitted residual ratio",
+    "upper_conformal_quantile": "one-based order statistic ceil((n+1)*(1-alpha))",
+    "winner_runner_family": "best-versus-second-best pure gap"
+  },
+  "candidate_power_enabled": {
+    "change_probability": true,
+    "gain": true,
+    "information_gain": true,
+    "innovation_l2": true,
+    "surprise": true,
+    "update_l2": true
+  },
+  "chronology": "Method, thresholds, power gate, and fresh streams were committed after immutable baseline failure d1251ddd and before this evaluation.",
+  "design": "maximin_optimized",
+  "experiment": "post_failure_pairwise_cone_abstention_diagnostic",
+  "input_provenance": {
+    "allocation": {
+      "allocation_bytes": 14450,
+      "allocation_file": "optimal_design_allocation_seed7.csv",
+      "allocation_file_seed_field_present": false,
+      "allocation_seed": 7,
+      "allocation_seed_source": "explicit_cli_metadata",
+      "allocation_sha256": "a823be49faf6c6cbebf60b11d4b5ca895cf7734d6e9c577ee98f97a5907b69b2",
+      "construction_contract": {
+        "all_three_allocations_reconstructed": true,
+        "allocation_seed": 7,
+        "comparator_cap_semantics": "the maximin cap does not apply to the deterministic coupled-novelty or uniform-factorial constructors",
+        "maximin_max_point_fraction": 0.15,
+        "maximin_maximum_count_by_budget": {
+          "60": 9
+        }
+      },
+      "design_budgets": {
+        "coupled_novelty": 60,
+        "maximin_optimized": 60,
+        "uniform_factorial": 60
+      },
+      "kind": "chronologically_locked_primary_design_allocation",
+      "source_code_sha": "1b2028929ac6ebc1cce0882f0c22af9918044342",
+      "source_repository": "IPS-Stuttgart/Bayesian-ACh"
+    },
+    "baseline": {
+      "checksum_table_sha256": "44a5188c43bda52e6fc9dc7007cf2de44a9671e9c5477ac88c3173c06cfdbd80",
+      "kind": "immutable_original_design_stress_failure",
+      "manifest_sha256": "d840a2ec34f5a386109c7f985033b53144fdcc1b1a0e0592b3274c0e38902b64",
+      "producer_commit": "c71695fda83ae93407599a909097962ee3fa9e0e",
+      "verified_payload_count": 9
+    }
+  },
+  "interpretation": "Separately configured sensitivity after the immutable original stress failure; not a main-paper open-set robustness claim.",
+  "maximum_enabled_mixture_false_pure_wilson_upper": 0.25544044374612745,
+  "maximum_mixture_false_pure_wilson_upper_descriptive_all": 0.6270218074881414,
+  "minimum_matched_pure_wilson_lower": 0.7391448134346212,
+  "mixture_contrasts_enabled_count": 9,
+  "null_false_pure_wilson_upper": 0.027773704397892923,
+  "null_power_enabled": true,
+  "out_of_span_false_pure_wilson_upper": 0.7867655018531416,
+  "out_of_span_power_enabled": false,
+  "pair_power_enabled": {
+    "gain+change_probability": true,
+    "gain+information_gain": false,
+    "gain+update_l2": false,
+    "information_gain+change_probability": true,
+    "innovation_l2+change_probability": true,
+    "innovation_l2+gain": true,
+    "innovation_l2+information_gain": false,
+    "innovation_l2+surprise": false,
+    "innovation_l2+update_l2": true,
+    "surprise+change_probability": true,
+    "surprise+gain": true,
+    "surprise+information_gain": false,
+    "surprise+update_l2": true,
+    "update_l2+change_probability": true,
+    "update_l2+information_gain": false
+  },
+  "schema_version": 1,
+  "technical_gates": {
+    "all_fifteen_pairwise_composites": true,
+    "calibration_quantile_rank_fixed_before_evaluation": true,
+    "candidate_and_contrast_power_gates_applied": true,
+    "evaluation_not_used_for_thresholds": true,
+    "streams_disjoint": true,
+    "three_fold_cross_fitting": true
+  }
+}

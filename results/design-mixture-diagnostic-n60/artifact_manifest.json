@@ -1,0 +1,101 @@
+{
+  "artifact": "post_failure_mixture_aware_design_diagnostic",
+  "configuration": {
+    "alpha": 0.05,
+    "budget": 60,
+    "calibration_audit_replicates": 200,
+    "calibration_audit_seed": 262147,
+    "calibration_replicates": 200,
+    "confidence_level": 0.95,
+    "design": "maximin_optimized",
+    "effect_size": 1.0,
+    "evaluation_replicates": 200,
+    "evaluation_seed": 324949,
+    "folds": 3,
+    "minimum_pure_retention_wilson_lower": 0.7,
+    "minimum_rejection_power_wilson_lower": 0.7,
+    "noise_std": 1.0,
+    "threshold_seed": 196613
+  },
+  "configuration_sha256": "338ac9eea51f37d09b46303bdec66d5acc8d5e6fb16740c9afb036de3063c5a7",
+  "files": [
+    {
+      "bytes": 4231,
+      "path": "summary.json",
+      "sha256": "1311330a9f7b3278eb16dbb48d65b57b8337a695c6ad2026cac1efbff795b3c2"
+    },
+    {
+      "bytes": 870,
+      "path": "thresholds.csv",
+      "sha256": "2da2db3544398e84e124ae591ad3acac08d0ff9d716871067795fba630b9410f"
+    },
+    {
+      "bytes": 5328,
+      "path": "calibration_audit.csv",
+      "sha256": "1333d0eae21afa6f87675db935d2ce69e026f0149d7d9c6707341a25bfdac444"
+    },
+    {
+      "bytes": 1192,
+      "path": "pure_evaluation.csv",
+      "sha256": "58b2d40de305d5f4c789b3b92c0110bdd74e98c8649928f8cea1c6810cded2d1"
+    },
+    {
+      "bytes": 279,
+      "path": "null_evaluation.csv",
+      "sha256": "782463aeb6919c0753ebe05212d15744a46e8df2e4d71a4a4d279b46741df074"
+    },
+    {
+      "bytes": 3154,
+      "path": "mixture_evaluation.csv",
+      "sha256": "37a864c5a8410b7ea91fcefee4a4ae2df11fc1a1d397fb4f7651520abbcf5a3e"
+    },
+    {
+      "bytes": 500,
+      "path": "out_of_span_evaluation.csv",
+      "sha256": "181099f69267c8dc119d45fbd7b66a0a003cc05912f5dae459ef2742c5f07a9f"
+    },
+    {
+      "bytes": 1722,
+      "path": "geometry.csv",
+      "sha256": "30bcf7c226d17f8a543cf08f58052ab33529b68d9e1a585c05da7ce3f4001d49"
+    }
+  ],
+  "inputs": [
+    {
+      "checksum_table_sha256": "44a5188c43bda52e6fc9dc7007cf2de44a9671e9c5477ac88c3173c06cfdbd80",
+      "kind": "immutable_original_design_stress_failure",
+      "manifest_sha256": "d840a2ec34f5a386109c7f985033b53144fdcc1b1a0e0592b3274c0e38902b64",
+      "producer_commit": "c71695fda83ae93407599a909097962ee3fa9e0e",
+      "verified_payload_count": 9
+    },
+    {
+      "allocation_bytes": 14450,
+      "allocation_file": "optimal_design_allocation_seed7.csv",
+      "allocation_file_seed_field_present": false,
+      "allocation_seed": 7,
+      "allocation_seed_source": "explicit_cli_metadata",
+      "allocation_sha256": "a823be49faf6c6cbebf60b11d4b5ca895cf7734d6e9c577ee98f97a5907b69b2",
+      "construction_contract": {
+        "all_three_allocations_reconstructed": true,
+        "allocation_seed": 7,
+        "comparator_cap_semantics": "the maximin cap does not apply to the deterministic coupled-novelty or uniform-factorial constructors",
+        "maximin_max_point_fraction": 0.15,
+        "maximin_maximum_count_by_budget": {
+          "60": 9
+        }
+      },
+      "design_budgets": {
+        "coupled_novelty": 60,
+        "maximin_optimized": 60,
+        "uniform_factorial": 60
+      },
+      "kind": "chronologically_locked_primary_design_allocation",
+      "source_code_sha": "1b2028929ac6ebc1cce0882f0c22af9918044342",
+      "source_repository": "IPS-Stuttgart/Bayesian-ACh"
+    }
+  ],
+  "producer_commit": "564ab3cfe42f67867d70a5d5869c7c4401d94c8e",
+  "producer_git_dirty": false,
+  "repository": "IPS-Stuttgart/Bayesian-ACh",
+  "schema_version": 1
+}

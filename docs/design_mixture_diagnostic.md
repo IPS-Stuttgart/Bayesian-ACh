@@ -82,6 +82,23 @@ Passing this diagnostic would support only the declared simulation family and
 would not constitute a main-paper robustness claim without an independent
 freeze.
 
+## Frozen one-time result
+
+The one-time evaluation was produced at commit
+`564ab3cfe42f67867d70a5d5869c7c4401d94c8e` with configuration digest
+`338ac9eea51f37d09b46303bdec66d5acc8d5e6fb16740c9afb036de3063c5a7`.
+All six matched-pure contrasts and the null contrast passed their independent
+audit-power gates. Nine of the 15 pairwise mixtures passed their own audit gate;
+the other six are reported as `mandatory_abstain_underpowered`. The fixed
+out-of-span probe also failed its audit-power gate and is therefore disabled.
+
+Across the enabled pairwise-mixture contrasts, the largest evaluation
+false-pure-call rate was 0.195 (95% Wilson upper bound 0.2554). The null
+false-pure-call rate was 0.005 (upper bound 0.0278). The disabled out-of-span
+probe had a descriptive false-pure-call rate of 0.73 and cannot support an
+open-set claim. The frozen result therefore establishes partial, targeted
+sensitivity with mandatory abstention, not general open-set robustness.
+
 ## Reproduction
 
 From a clean checkout of the exact producer commit:
