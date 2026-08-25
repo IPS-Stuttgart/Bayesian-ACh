@@ -256,6 +256,27 @@ def test_stress_orchestration_covers_every_design_and_pair(
     }
 
 
+def test_optimizer_cap_does_not_apply_to_declared_comparators() -> None:
+    counts = np.zeros(20, dtype=np.int64)
+    counts[:5] = 12
+    accepted = stress._validated_override(
+        counts,
+        design="coupled_novelty",
+        point_count=20,
+        budget=60,
+        maximum_count=9,
+    )
+    np.testing.assert_array_equal(accepted, counts)
+    with pytest.raises(ValueError, match="maximin allocation override"):
+        stress._validated_override(
+            counts,
+            design="maximin_optimized",
+            point_count=20,
+            budget=60,
+            maximum_count=9,
+        )
+
+
 def test_unused_certified_override_is_rejected(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -279,10 +300,28 @@ def test_locked_primary_allocation_is_hash_bound(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    expected_counts = np.array([1, 0, 1, 0], dtype=np.int64)
+    grid_rows = tuple({"point_id": index} for index in range(4))
+    standardized = np.arange(24, dtype=float).reshape(4, 6)
     monkeypatch.setattr(
         stress_cli,
         "generate_transition_design_grid",
-        lambda: (tuple({"point_id": index} for index in range(4)), None, None),
+        lambda: (grid_rows, standardized.copy(), standardized.copy()),
+    )
+    monkeypatch.setattr(
+        stress_cli,
+        "coupled_novelty_design",
+        lambda *_args, **_kwargs: expected_counts.copy(),
+    )
+    monkeypatch.setattr(
+        stress_cli,
+        "uniform_factorial_design",
+        lambda *_args, **_kwargs: expected_counts.copy(),
+    )
+    monkeypatch.setattr(
+        stress_cli,
+        "optimize_maximin_design",
+        lambda *_args, **_kwargs: SimpleNamespace(counts=expected_counts.copy()),
     )
     path = tmp_path / "locked.csv"
     rows = [
@@ -306,11 +345,44 @@ def test_locked_primary_allocation_is_hash_bound(
     assert set(overrides) == {(design, 2) for design in stress.STRESS_DESIGNS}
     assert provenance["allocation_sha256"] == expected
     assert provenance["seeds"] == ["7"]
+    assert provenance["construction_contract"] == {
+        "allocation_seed": 7,
+        "maximin_max_point_fraction": 0.15,
+        "maximin_maximum_count_by_budget": {"2": 1},
+        "comparator_cap_semantics": (
+            "the maximin cap does not apply to the deterministic "
+            "coupled-novelty or uniform-factorial constructors"
+        ),
+        "all_three_allocations_reconstructed": True,
+    }
 
     with pytest.raises(ValueError, match="SHA-256 mismatch"):
         _load_locked_design_allocation(
             path,
             expected_sha256="0" * 64,
+            source_code_sha="b" * 40,
+        )
+
+    altered_rows = [
+        {"seed": 7, "design": "coupled_novelty", "point_id": 0, "count": 2},
+        *[
+            {"seed": 7, "design": design, "point_id": point, "count": 1}
+            for design in ("uniform_factorial", "maximin_optimized")
+            for point in (0, 2)
+        ],
+    ]
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(
+            handle,
+            fieldnames=("seed", "design", "point_id", "count"),
+        )
+        writer.writeheader()
+        writer.writerows(altered_rows)
+    altered_sha = hashlib.sha256(path.read_bytes()).hexdigest()
+    with pytest.raises(ValueError, match="coupled_novelty.*frozen constructor"):
+        _load_locked_design_allocation(
+            path,
+            expected_sha256=altered_sha,
             source_code_sha="b" * 40,
         )
 
