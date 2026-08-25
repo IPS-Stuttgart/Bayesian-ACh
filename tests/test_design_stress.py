@@ -49,6 +49,15 @@ def test_conformal_threshold_and_wilson_interval_are_conservative() -> None:
     assert 0.03 < upper < 0.04
 
 
+def test_stress_config_rejects_nonfinite_and_duplicate_settings() -> None:
+    with pytest.raises(ValueError, match="finite, positive, and unique"):
+        DesignStressConfig(budget_factors=(1.0, 1.0)).validate()
+    with pytest.raises(ValueError, match="target_log_score_gap"):
+        DesignStressConfig(target_log_score_gap=np.inf).validate()
+    with pytest.raises(ValueError, match="ridge_lambdas"):
+        DesignStressConfig(ridge_lambdas=(0.0, np.nan)).validate()
+
+
 def test_threshold_calibration_is_finite_with_minimum_replicates() -> None:
     rng = np.random.default_rng(17)
     signals = rng.normal(size=(36, 6))
