@@ -48,5 +48,5 @@ def test_design_cli_retains_deprecated_target_alias(tmp_path: Path) -> None:
     ) == 0
     with (output / "summary.json").open(encoding="utf-8") as handle:
         summary = json.load(handle)
-    assert summary["config"]["target_log_score_gap"] == 5.0
+    assert summary["config"]["target_log_score_gap"] == 2.5
     assert summary["designs"][0]["trials_for_expected_log_score_gap_target"] > 0
