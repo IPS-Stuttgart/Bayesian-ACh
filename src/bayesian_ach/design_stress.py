@@ -696,7 +696,7 @@ def _evaluation_rows(
         mixture = mixture_grid[trial_indices] / scale
         false_calls = 0
         constituent_calls = 0
-        reasons: dict[str, int] = {}
+        mixture_reasons: dict[str, int] = {}
         for replicate in range(config.evaluation_replicates):
             scores = _simulate_scores(
                 trial_signals,
@@ -715,7 +715,7 @@ def _evaluation_rows(
             call, reason = _call(scores, thresholds)
             false_calls += int(call is not None)
             constituent_calls += int(call in {first, second})
-            reasons[reason] = reasons.get(reason, 0) + 1
+            mixture_reasons[reason] = mixture_reasons.get(reason, 0) + 1
         lower, upper = _wilson_interval(
             false_calls,
             config.evaluation_replicates,
@@ -740,7 +740,7 @@ def _evaluation_rows(
                 ),
                 "wilson_lower": lower,
                 "wilson_upper": upper,
-                "abstention_reasons": dict(sorted(reasons.items())),
+                "abstention_reasons": dict(sorted(mixture_reasons.items())),
             }
         )
     return pure_rows, null_rows, mixture_rows
@@ -977,7 +977,10 @@ def run_design_stress(
 
     unused_overrides = set(overrides) - used_overrides
     if unused_overrides:
-        raise ValueError(f"allocation overrides did not match a stress budget: {sorted(unused_overrides)}")
+        raise ValueError(
+            "allocation overrides did not match a stress budget: "
+            f"{sorted(unused_overrides)}"
+        )
 
     minimum_pure_lower = min(float(row["wilson_lower"]) for row in pure_rows)
     maximum_null_upper = max(float(row["wilson_upper"]) for row in null_rows)
