@@ -11,8 +11,16 @@ recovery into biological evidence.
 The primary run evaluates the chronologically earlier, equal-budget 60-draw
 allocation frozen for the five-seed paper benchmark. The CLI verifies the exact
 allocation-file SHA-256 and source-code commit, loads all three designs from that
-file, and rejects any recomputed or unused override. This prevents a later
-certificate or stress result from silently changing the primary schedule.
+file, and reconstructs all three deterministic constructors before accepting the
+counts. The accepted summary did not serialize the optimizer cap, so this contract
+also records the source-code setting: the maximin constructor uses
+`max_point_fraction=0.15` (a cap of 9 at N=60), while the cap does not apply to
+the coupled-novelty or uniform-factorial comparators. In the frozen file the
+observed maxima are 8, 12, and 1 respectively. Applying the optimizer cap to the
+novelty comparator would therefore change the accepted benchmark rather than
+validate it. Hash, seed, constructor, or unused-override mismatches are rejected.
+This prevents a later certificate or stress result from silently changing the
+primary schedule.
 
 The artifact still reports each design's population observation-equivalent index,
 recomputed from its 60-draw geometry using
