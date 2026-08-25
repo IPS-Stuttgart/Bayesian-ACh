@@ -25,12 +25,28 @@ sets separate upper thresholds for:
 - a cross-fitted residual lack-of-fit ratio, defined as validation squared error
   divided by the variance fitted on the corresponding training fold.
 
-The pure-over-null and winner-over-runner thresholds are calibrated from the
-maximum statistics under the null. A pure label is enabled only if an independent
-calibration audit gives a 95% Wilson lower bound of at least 0.70 for its correct
-pure-call rate. Otherwise every evaluation call with that winner must abstain.
-This power rule was fixed before evaluation and is not relaxed for difficult
-candidates.
+Every upper threshold uses the one-based order statistic
+`ceil((n+1)(1-alpha))`. With `n=200` and familywise `alpha=0.05`, this is
+rank 191. The pure-over-null statistic is the maximum over all six pure
+candidates under the null. The composite statistic is the maximum over all 15
+pairs, calibrated separately under each matched pure candidate. The
+winner/runner statistic is the best-minus-second-best pure score under the null;
+the residual threshold is candidate-specific.
+
+The independent audit measures four distinct forms of power, each with a 95%
+Wilson interval:
+
+- correct pure-call retention, separately for each pure candidate;
+- correct abstention under the null;
+- correct abstention, separately for each of the 15 mixture pairs; and
+- correct abstention for the fixed out-of-span probe.
+
+A candidate or contrast is enabled only when its own audit Wilson lower bound is
+at least 0.70. An underpowered pure winner is forced to abstain. Pair/null/probe
+evaluation rates remain descriptive but receive the status
+`mandatory_abstain_underpowered` when their corresponding audit gate fails.
+Thus an easy contrast cannot license a claim for a difficult pair. These power
+rules were fixed before evaluation and are not relaxed after seeing its output.
 
 The fixed streams and replicate counts are:
 
