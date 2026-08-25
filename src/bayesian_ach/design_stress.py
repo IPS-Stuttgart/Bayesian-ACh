@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from itertools import combinations
 from statistics import NormalDist
-from typing import Any, Mapping
+from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
@@ -38,6 +39,7 @@ class DesignStressConfig:
     test_fraction: float = 0.35
     effect_size: float = 1.0
     noise_std: float = 1.0
+    target_log_score_gap: float = 5.0
     alpha: float = 0.05
     confidence_level: float = 0.95
     ridge_lambdas: tuple[float, ...] = (0.0, 0.01, 0.1, 1.0)
@@ -62,6 +64,8 @@ class DesignStressConfig:
             raise ValueError("test_fraction must lie in (0, 1)")
         if self.effect_size <= 0.0 or self.noise_std <= 0.0:
             raise ValueError("effect_size and noise_std must be positive")
+        if self.target_log_score_gap <= 0.0:
+            raise ValueError("target_log_score_gap must be positive")
         if not 0.0 < self.alpha < 0.5:
             raise ValueError("alpha must lie in (0, 0.5)")
         if not 0.0 < self.confidence_level < 1.0:
@@ -415,6 +419,9 @@ def _base_targets(
         targets[design] = design_diagnostics(
             signals,
             counts,
+            effect_size=config.effect_size,
+            noise_std=config.noise_std,
+            target_log_score_gap=config.target_log_score_gap,
         ).trials_for_expected_log_score_gap_target
     return targets
 
@@ -793,7 +800,13 @@ def run_design_stress(
                 )
             indices = np.repeat(np.arange(counts.size), counts)
             trial_signals = standardized[indices]
-            diagnostics = design_diagnostics(standardized, counts)
+            diagnostics = design_diagnostics(
+                standardized,
+                counts,
+                effect_size=config.effect_size,
+                noise_std=config.noise_std,
+                target_log_score_gap=config.target_log_score_gap,
+            )
             for point_index in np.flatnonzero(counts):
                 allocation_rows.append(
                     {
