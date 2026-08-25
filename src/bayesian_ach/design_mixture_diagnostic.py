@@ -937,6 +937,14 @@ def run_mixture_diagnostic(
     threshold_rows = [
         {
             "candidate": name,
+            "alpha": config.alpha,
+            "calibration_replicates": config.calibration_replicates,
+            "upper_conformal_rank_one_based": int(
+                math.ceil(
+                    (config.calibration_replicates + 1)
+                    * (1.0 - config.alpha)
+                )
+            ),
             "pure_over_null_familywise": thresholds.pure_over_null,
             "winner_over_runner_familywise": thresholds.winner_over_runner,
             "pairwise_composite_over_pure_familywise": (
@@ -958,6 +966,36 @@ def run_mixture_diagnostic(
         ),
         "design": config.design,
         "budget": config.budget,
+        "calibration_rule": {
+            "alpha": config.alpha,
+            "upper_conformal_quantile": (
+                "one-based order statistic ceil((n+1)*(1-alpha))"
+            ),
+            "rank": int(
+                math.ceil(
+                    (config.calibration_replicates + 1)
+                    * (1.0 - config.alpha)
+                )
+            ),
+            "pure_over_null_family": "maximum over six pure candidates",
+            "winner_runner_family": "best-versus-second-best pure gap",
+            "composite_family": (
+                "maximum held-out score across all 15 nonnegative pairs, "
+                "calibrated separately under each matched pure candidate"
+            ),
+            "residual_gof_family": (
+                "candidate-specific cross-fitted residual ratio"
+            ),
+        },
+        "audit_power_definitions": {
+            "matched_pure": "correct pure-call retention rate",
+            "null": "correct abstention rate",
+            "mixture_pair": "correct abstention rate for that exact pair",
+            "out_of_span": "correct abstention rate for the fixed probe",
+            "minimum_wilson_lower": (
+                config.minimum_rejection_power_wilson_lower
+            ),
+        },
         "candidate_power_enabled": {
             name: enabled[index]
             for index, name in enumerate(DESIGN_CANDIDATE_NAMES)
