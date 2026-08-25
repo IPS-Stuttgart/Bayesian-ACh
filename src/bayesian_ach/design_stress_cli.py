@@ -176,6 +176,7 @@ def _load_locked_design_allocation(
     *,
     expected_sha256: str,
     source_code_sha: str,
+    allocation_seed: int,
 ) -> tuple[dict[tuple[str, int], NDArray[np.int64]], dict[str, Any]]:
     path = path.resolve()
     if re.fullmatch(r"[0-9a-f]{64}", expected_sha256) is None:
@@ -184,6 +185,8 @@ def _load_locked_design_allocation(
         raise ValueError(
             "locked allocation source code SHA must contain 40 lowercase hex characters"
         )
+    if allocation_seed != _LOCKED_ALLOCATION_SEED:
+        raise ValueError("locked allocation seed does not match the frozen constructor")
     observed_sha256 = _sha256(path)
     if observed_sha256 != expected_sha256:
         raise ValueError("locked design allocation SHA-256 mismatch")
@@ -225,8 +228,10 @@ def _load_locked_design_allocation(
     budgets = {design: int(np.sum(value)) for design, value in counts.items()}
     if any(budget <= 0 for budget in budgets.values()):
         raise ValueError("locked allocation must contain every declared design")
-    if seeds != {str(_LOCKED_ALLOCATION_SEED)}:
-        raise ValueError("locked allocation seed does not match the frozen constructor")
+    if seeds and seeds != {str(allocation_seed)}:
+        raise ValueError(
+            "allocation-file seed does not match the explicit frozen seed metadata"
+        )
     expected_counts: dict[str, NDArray[np.int64]] = {
         "coupled_novelty": coupled_novelty_design(
             grid_rows,
@@ -260,9 +265,11 @@ def _load_locked_design_allocation(
         "allocation_sha256": observed_sha256,
         "allocation_bytes": path.stat().st_size,
         "design_budgets": budgets,
-        "seeds": sorted(seeds),
+        "allocation_seed": allocation_seed,
+        "allocation_seed_source": "explicit_cli_metadata",
+        "allocation_file_seed_field_present": bool(seeds),
         "construction_contract": {
-            "allocation_seed": _LOCKED_ALLOCATION_SEED,
+            "allocation_seed": allocation_seed,
             "maximin_max_point_fraction": _LOCKED_MAXIMIN_MAX_POINT_FRACTION,
             "maximin_maximum_count_by_budget": {
                 str(budgets["maximin_optimized"]): int(
@@ -363,6 +370,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--locked-allocation", type=Path)
     parser.add_argument("--locked-allocation-sha256")
     parser.add_argument("--locked-design-code-sha")
+    parser.add_argument("--locked-allocation-seed", type=int)
     parser.add_argument(
         "--certified-allocation",
         action="append",
@@ -392,16 +400,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         args.locked_allocation,
         args.locked_allocation_sha256,
         args.locked_design_code_sha,
+        args.locked_allocation_seed,
     )
     if any(value is not None for value in locked_arguments):
         if not all(value is not None for value in locked_arguments):
             raise ValueError(
-                "locked allocation path, SHA-256, and source code SHA are jointly required"
+                "locked allocation path, SHA-256, source code SHA, and seed "
+                "are jointly required"
             )
         locked_overrides, item = _load_locked_design_allocation(
             args.locked_allocation,
             expected_sha256=args.locked_allocation_sha256,
             source_code_sha=args.locked_design_code_sha,
+            allocation_seed=args.locked_allocation_seed,
         )
         overrides.update(locked_overrides)
         provenance.append(item)
