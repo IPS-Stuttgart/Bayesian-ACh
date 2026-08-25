@@ -36,7 +36,8 @@ class MixtureDiagnosticConfig:
     noise_std: float = 1.0
     alpha: float = 0.05
     confidence_level: float = 0.95
-    minimum_pure_power_wilson_lower: float = 0.70
+    minimum_pure_retention_wilson_lower: float = 0.70
+    minimum_rejection_power_wilson_lower: float = 0.70
     threshold_seed: int = 196613
     calibration_audit_seed: int = 262147
     evaluation_seed: int = 324949
@@ -63,8 +64,10 @@ class MixtureDiagnosticConfig:
             raise ValueError("alpha must lie in (0, 0.5)")
         if not 0.0 < self.confidence_level < 1.0:
             raise ValueError("confidence level must lie in (0, 1)")
-        if not 0.0 <= self.minimum_pure_power_wilson_lower <= 1.0:
-            raise ValueError("minimum pure-power lower bound must lie in [0, 1]")
+        if not 0.0 <= self.minimum_pure_retention_wilson_lower <= 1.0:
+            raise ValueError("minimum pure-retention lower bound must lie in [0, 1]")
+        if not 0.0 <= self.minimum_rejection_power_wilson_lower <= 1.0:
+            raise ValueError("minimum rejection-power lower bound must lie in [0, 1]")
         if len(
             {
                 self.threshold_seed,
@@ -421,7 +424,7 @@ def _audit_power(
             config.calibration_audit_replicates,
             config.confidence_level,
         )
-        is_enabled = lower >= config.minimum_pure_power_wilson_lower
+        is_enabled = lower >= config.minimum_pure_retention_wilson_lower
         enabled.append(is_enabled)
         rows.append(
             {
@@ -439,7 +442,7 @@ def _audit_power(
                 "wilson_lower": lower,
                 "wilson_upper": upper,
                 "minimum_wilson_lower": (
-                    config.minimum_pure_power_wilson_lower
+                    config.minimum_pure_retention_wilson_lower
                 ),
                 "candidate_enabled": is_enabled,
                 "reasons": dict(sorted(reasons.items())),
