@@ -6,6 +6,7 @@ import argparse
 import csv
 import hashlib
 import json
+import math
 import re
 import subprocess
 from collections.abc import Mapping, Sequence
@@ -16,7 +17,12 @@ from typing import Any
 import numpy as np
 from numpy.typing import NDArray
 
-from bayesian_ach.design_stress import DesignStressConfig, run_design_stress
+from bayesian_ach.design_grid import generate_transition_design_grid
+from bayesian_ach.design_stress import (
+    STRESS_DESIGNS,
+    DesignStressConfig,
+    run_design_stress,
+)
 from bayesian_ach.io import write_json, write_rows_csv
 
 _REPOSITORY = "IPS-Stuttgart/Bayesian-ACh"
@@ -158,6 +164,74 @@ def _load_certified_allocation(
     return ("maximin_optimized", budget), counts, provenance
 
 
+def _load_locked_design_allocation(
+    path: Path,
+    *,
+    expected_sha256: str,
+    source_code_sha: str,
+) -> tuple[dict[tuple[str, int], NDArray[np.int64]], dict[str, Any]]:
+    path = path.resolve()
+    if re.fullmatch(r"[0-9a-f]{64}", expected_sha256) is None:
+        raise ValueError("locked allocation SHA-256 must contain 64 lowercase hex characters")
+    if _SHA_PATTERN.fullmatch(source_code_sha) is None:
+        raise ValueError("locked allocation source code SHA must contain 40 lowercase hex characters")
+    observed_sha256 = _sha256(path)
+    if observed_sha256 != expected_sha256:
+        raise ValueError("locked design allocation SHA-256 mismatch")
+    point_count = len(generate_transition_design_grid()[0])
+    counts = {
+        design: np.zeros(point_count, dtype=np.int64)
+        for design in STRESS_DESIGNS
+    }
+    seen: set[tuple[str, int]] = set()
+    seeds: set[str] = set()
+    with path.open(newline="", encoding="utf-8") as handle:
+        rows = list(csv.DictReader(handle))
+    if not rows:
+        raise ValueError("locked design allocation is empty")
+    for row in rows:
+        design = str(row["design"])
+        if design not in counts:
+            raise ValueError(f"unknown locked design name: {design}")
+        point = int(row["point_id"])
+        raw_count = row.get("count", row.get("allocation"))
+        if raw_count is None:
+            raise ValueError("locked allocation requires a count or allocation column")
+        value = float(raw_count)
+        rounded = int(round(value))
+        key = (design, point)
+        if (
+            point < 0
+            or point >= point_count
+            or key in seen
+            or rounded <= 0
+            or not math.isclose(value, rounded, abs_tol=1.0e-9)
+        ):
+            raise ValueError("locked design allocation has an invalid row")
+        counts[design][point] = rounded
+        seen.add(key)
+        if row.get("seed") not in {None, ""}:
+            seeds.add(str(row["seed"]))
+    budgets = {design: int(np.sum(value)) for design, value in counts.items()}
+    if any(budget <= 0 for budget in budgets.values()):
+        raise ValueError("locked allocation must contain every declared design")
+    overrides = {
+        (design, budgets[design]): value
+        for design, value in counts.items()
+    }
+    provenance = {
+        "kind": "chronologically_locked_primary_design_allocation",
+        "source_repository": _REPOSITORY,
+        "source_code_sha": source_code_sha,
+        "allocation_file": path.name,
+        "allocation_sha256": observed_sha256,
+        "allocation_bytes": path.stat().st_size,
+        "design_budgets": budgets,
+        "seeds": sorted(seeds),
+    }
+    return overrides, provenance
+
+
 def _write_artifact(
     output: Path,
     *,
@@ -228,13 +302,17 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--repo-root", type=Path, default=Path.cwd())
     parser.add_argument("--code-sha", required=True)
-    parser.add_argument("--budget-factors", nargs="+", type=float, default=(0.5, 1.0, 2.0))
+    parser.add_argument("--fixed-budgets", nargs="+", type=int, default=(60,))
+    parser.add_argument("--budget-factors", nargs="*", type=float, default=())
     parser.add_argument("--calibration-replicates", type=int, default=100)
     parser.add_argument("--calibration-audit-replicates", type=int, default=100)
     parser.add_argument("--evaluation-replicates", type=int, default=200)
     parser.add_argument("--threshold-seed", type=int, default=104729)
     parser.add_argument("--calibration-audit-seed", type=int, default=130363)
     parser.add_argument("--evaluation-seed", type=int, default=155921)
+    parser.add_argument("--locked-allocation", type=Path)
+    parser.add_argument("--locked-allocation-sha256")
+    parser.add_argument("--locked-design-code-sha")
     parser.add_argument(
         "--certified-allocation",
         action="append",
@@ -249,6 +327,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     _git_provenance(args.repo_root.resolve(), args.code_sha)
     config = DesignStressConfig(
+        fixed_budgets=tuple(args.fixed_budgets),
         budget_factors=tuple(args.budget_factors),
         calibration_replicates=args.calibration_replicates,
         calibration_audit_replicates=args.calibration_audit_replicates,
@@ -259,6 +338,23 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     overrides: dict[tuple[str, int], NDArray[np.int64]] = {}
     provenance: list[dict[str, Any]] = []
+    locked_arguments = (
+        args.locked_allocation,
+        args.locked_allocation_sha256,
+        args.locked_design_code_sha,
+    )
+    if any(value is not None for value in locked_arguments):
+        if not all(value is not None for value in locked_arguments):
+            raise ValueError(
+                "locked allocation path, SHA-256, and source code SHA are jointly required"
+            )
+        locked_overrides, item = _load_locked_design_allocation(
+            args.locked_allocation,
+            expected_sha256=args.locked_allocation_sha256,
+            source_code_sha=args.locked_design_code_sha,
+        )
+        overrides.update(locked_overrides)
+        provenance.append(item)
     for path in args.certified_allocation:
         key, counts, item = _load_certified_allocation(path)
         if key in overrides:
