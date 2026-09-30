@@ -3,6 +3,21 @@
 **Bayesian-ACh** is a falsifiable computational benchmark for testing what
 hippocampal acetylcholine (ACh) encodes during predictive learning.
 
+## Measurement-aware identification and mixed codes
+
+The reference analyses in [research/identification](research/identification)
+and [research/composite_codes](research/composite_codes) distinguish structural
+identification from pure-candidate recovery. They provide increasing-link
+equivalence tests, minimal three-condition constructions, a sensor/nuisance
+overlap diagnostic, and confidence-set inversion over bounded positive mixtures.
+The latter controls false purity certification under a fixed known-covariance
+Gaussian model; it does not establish unrestricted biological purity. At the
+locked N=60 design its minimum pure certification is 0.006, with worst tested
+mixture false-pure rate 0.0035. Proofs, assumptions, numerical amendments, tests,
+and byte-reproducible evidence are included. Existing frozen results are unchanged.
+
+## Framework
+
 The project starts from the state-transition prediction-error hypothesis of
 [de Cothi, Shipley, and Barry (2026)](https://doi.org/10.1038/s41583-026-01058-w)
 and asks a sharper estimation-theoretic question:

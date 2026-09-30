@@ -1,0 +1,167 @@
+% Integration fragment: uses only standard amsmath/booktabs already in the paper.
+% Proposed central result; no empirical outcome is asserted here.
+\subsection{What a task can identify without a calibrated neural response curve}
+\label{sec:monotone_identification}
+
+A successful linear-response model comparison does not establish that the latent
+computational quantities are distinguishable independently of the assumed neural
+encoding. We therefore first characterize identification at the level of task
+support. Let $f_i$ be a scalar candidate's prediction in condition $i$, where a
+condition includes the relevant outcome, confidence, and history. The latent
+parameters are held fixed or constrained independently by behavior. Allow a
+single, candidate-specific, strictly increasing response function $h$, shared
+across conditions, with unrestricted offset and dynamic range. Its possible
+premeasurement mean vectors form
+\begin{equation}
+\mathcal C_f=\{(h(f_1),\ldots,h(f_n)):h\text{ strictly increasing}\}.
+\end{equation}
+
+\paragraph{Finite-support equivalence.}
+Two candidates have identical premeasurement mean families if and only if their
+predictions have the same weak order, including the same ties:
+\begin{equation}
+\mathcal C_f=\mathcal C_g
+\quad\Longleftrightarrow\quad
+\operatorname{sign}(f_i-f_j)=\operatorname{sign}(g_i-g_j)
+\quad\text{for every }i,j.
+\label{eq:weak_order_identification}
+\end{equation}
+Indeed, an increasing response preserves every strict inequality and equality.
+Conversely, identical weak orders define an increasing bijection between the
+observed candidate levels; interpolation and composition with the response
+function give the same set of mean vectors. If the weak orders differ, the two
+families are disjoint before measurement, and a two-condition witness exists:
+either the candidates reverse their ordering, or one predicts equality where
+the other predicts a difference. Thus a matched-level contrast can identify a
+distinction that an arbitrarily large number of repetitions on an equivalent
+support cannot. Imperfect Pearson correlation between candidate regressors is
+not sufficient: a nonlinear increasing reparameterization can leave their
+entire encoded mean families identical.
+
+\paragraph{A five-candidate equivalence on fixed-confidence binary tasks.}
+For a binary transition with observed-outcome probability $q$ and Dirichlet
+concentration $a$, the canonical quantities in Table~\ref{tab:candidates} reduce to
+\begin{align}
+I&=\sqrt{2}(1-q), & S&=-\log q, & G&=(a+1)^{-1},\nonumber\\
+U&=\frac{\sqrt{2}(1-q)}{a+1}, &
+K&=-\log q+\psi(aq+1)-\psi(a+1).
+\label{eq:canonical_binary_candidates}
+\end{align}
+Here $K=\mathrm{KL}[\operatorname{Dir}(\boldsymbol\alpha+\mathbf e_j)
+\Vert\operatorname{Dir}(\boldsymbol\alpha)]$. For a one-step stable/reset
+mixture with fixed hazard $\eta\in(0,1)$ and fixed reset predictive probability
+$r_j>0$, the reset posterior is
+\begin{equation}
+R=\frac{\eta r_j}{(1-\eta)q+\eta r_j}.
+\label{eq:restricted_reset_posterior}
+\end{equation}
+At fixed $a,\eta,r_j$, all five nonconstant quantities $I,S,U,K,R$ are strictly
+decreasing in $q$ and hence constitute one increasing-link equivalence class;
+$G$ is constant. For the less immediate case,
+$\partial K/\partial q=-1/q+a\psi_1(aq+1)<0$, because
+$\psi_1(x+1)=\sum_{k\geq1}(x+k)^{-2}<1/x$ for $x>0$.
+Consequently, recovering a winner among these five on this support using linear
+response curves identifies a winner \emph{within that encoding class}, not a
+distinction invariant to the neural response curve.
+
+\paragraph{A minimal separating support.}
+Varying confidence independently of probability separates four classes in the
+binary, fixed-reset setting. A concrete three-condition support is
+$A:(q,a)=(0.8,5)$, $B:(0.1,50)$, and $C:(0.8,50)$:
+\begin{center}
+\begin{tabular}{llll}
+\toprule
+Quantity or class & Predicted ordering & Separating feature\\
+\midrule
+$I,S,R$ & $A=C<B$ & Matched probability\\
+$G$ & $B=C<A$ & Matched concentration\\
+$U$ & $C<B<A$ & Update magnitude\\
+$K$ & $C<A<B$ & Opposite $A$--$B$ ordering to $U$\\
+\bottomrule
+\end{tabular}
+\end{center}
+In particular, $(U_A,U_B,U_C)=(0.04714045,0.02495671,0.00554594)$,
+whereas $(K_A,K_B,K_C)=(0.02314355,0.08671309,0.00248125)$.
+These are deterministic predictions, not fitted or empirical measurements.
+The three-condition support is cardinality-minimal for these four classes:
+two conditions permit only three weak-order signatures ($<$, $=$, or $>$).
+This result concerns support, not sample allocation or power, and assumes that
+the intended probability and confidence values are independently established.
+
+The remaining equivalences have explicit boundaries. With three or more
+outcomes, $I^2=(1-q)^2+\sum_{k\ne j}p_k^2$ is not generally a function of $q$.
+For example, observing category 1 under $(0.5,0.49,0.01)$ versus
+$(0.5,0.25,0.25)$ holds surprise and, at matched concentration, $K$ fixed while
+changing innovation. Similarly, independently changing reset hazard or reset
+predictive probability at matched $q$ breaks
+Eq.~\ref{eq:restricted_reset_posterior}'s equivalence to surprise. The restricted
+reset result is not a general claim about a history-dependent reset filter.
+
+For completeness, three conditions also suffice to separate all six declared
+scalar quantities when three-outcome predictive distributions and reset hazards
+can vary independently. With category 1 observed and $r_j=1/3$, take
+$A:(\mathbf p,a,\eta)=((0.8,0.1,0.1),5,0.1)$,
+$B:((0.1,0.45,0.45),50,0.1)$, and
+$C:((0.8,0.19,0.01),50,0.8)$. The respective weak orders are
+$A<C<B$ for $I$, $A=C<B$ for $S$, $B=C<A$ for $G$, $C<B<A$ for $U$,
+$C<A<B$ for $K$, and $A<B<C$ for the one-step reset posterior. This constructive
+example establishes a mathematical support bound, not the practical feasibility
+of independently manipulating these latent quantities in an animal.
+
+\paragraph{Measurement imposes a second identification condition.}
+Let $H$ be a fixed known linear event-to-sample operator incorporating sensor
+convolution, and let $B\boldsymbol\beta$ be unrestricted linear nuisance.
+The measured mean family is
+$\mathcal M_f=H\mathcal C_f+\operatorname{col}(B)$.
+Writing $P$ for projection orthogonal to $\operatorname{col}(B)$, two families
+overlap exactly when
+\begin{equation}
+\exists\,\mathbf z\in\mathcal C_f,\ \mathbf w\in\mathcal C_g:
+\quad PH(\mathbf z-\mathbf w)=0.
+\label{eq:measured_identification}
+\end{equation}
+Equal weak orders therefore remain observationally equivalent after every common
+sensor/nuisance mapping. Distinct weak orders need not remain distinguishable:
+observing only the sum of two conditions erases the distinction between
+$(0,1)$ and $(1,0)$. By contrast, a full-column-rank sensor with no nuisance
+preserves structural distinctions even if it makes their estimation
+ill-conditioned. More generally, $\ker(PH)\subseteq\operatorname{span}(\mathbf1)$
+is sufficient to preserve all weak-order distinctions, because a common offset
+cannot alter an ordering.
+
+Equation~\ref{eq:measured_identification} gives a reproducible finite diagnostic.
+Let $T_f$ and $T_g$ assign each condition to its ordered candidate level, so
+$\mathbf z=T_f\mathbf u$ and $\mathbf w=T_g\mathbf v$. Test
+$PH(T_f\mathbf u-T_g\mathbf v)=0$ with adjacent level gaps at least one.
+Homogeneity makes these constraints equivalent to strictly positive gaps for
+the unrestricted-link model. To avoid amplification of projection-cancellation
+roundoff, the implementation solves the equivalent direct equation
+$H(T_f\mathbf u-T_g\mathbf v)+B\boldsymbol\gamma=0$ with free nuisance
+coefficients, one global sensor normalization, and columnwise nuisance
+normalization. It checks numerical feasibility and residuals; it is not an exact-arithmetic
+certificate. An unknown fitted kernel or hypothesis-specific latent parameters
+requires an additional union over those parameters and can create further
+overlap.
+
+\paragraph{A witness is not a power guarantee.}
+Unrestricted increasing links allow the dynamic range to approach zero:
+$h_\epsilon(x)=b+\epsilon x$ remains increasing for every $\epsilon>0$.
+For shared Gaussian noise $\sigma^2 I$, the divergence between the corresponding
+measured distributions is
+\begin{equation}
+D_{\mathrm{KL}}=
+\frac{\epsilon^2}{2\sigma^2}\|H(\mathbf f-\mathbf g)\|_2^2
+\longrightarrow0.
+\end{equation}
+Thus no fixed finite sample size gives uniformly positive discrimination power
+above test size over unrestricted increasing links. A robust power or design
+claim needs a stated minimum effect scale in addition to a separating support
+and an adequate measurement operator.
+
+Finally, the increasing orientation is an assumption: allowing unknown sign
+also identifies an ordering with its reverse, and allowing arbitrary
+nondecreasing links gives all candidates a constant-response submodel.
+Experimental near-matches are not mathematical ties; matching uncertainty must
+be propagated or an equivalence tolerance specified independently.
+The supplied support audit therefore reports numerical rank/tie witnesses and
+near-ties separately, rather than treating an insignificant effect as equality.

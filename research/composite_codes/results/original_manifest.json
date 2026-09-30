@@ -1,0 +1,29 @@
+{
+  "kind": "post_failure_supported_set_diagnostic",
+  "sources": [
+    {
+      "name": "protocol.md",
+      "sha256": "901e6490c814a6a7e0a3ee171ad8fdc65d29af69dbf441e3a594291d535e6e6c"
+    },
+    {
+      "name": "supported_set.js",
+      "sha256": "c43e6e6981374427ab3ff6bdd7a5f665290d8166d354419518da12c0edd6c243"
+    },
+    {
+      "name": "test_supported_set.js",
+      "sha256": "12c05eeb5ad6e39026edff36a2f982a4d36066ec5db9dd3471b800a8e36064ce"
+    },
+    {
+      "name": "independent_verify.py",
+      "sha256": "ad474579751afea93c5a3cfa10ebe1671a976795a66d4dedfab40d415be7a316"
+    },
+    {
+      "name": "run_supported_set.js",
+      "sha256": "569784565e8596605d03c37cdd1b77e54babd9b260527b068e78726c27ada691"
+    }
+  ],
+  "payload": {
+    "name": "result.json",
+    "sha256": "4bb9d5ec14b8408eb6b0668c6907193a18b275545680411678a066091a223941"
+  }
+}
