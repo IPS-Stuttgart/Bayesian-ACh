@@ -1,0 +1,12 @@
+"use strict";
+const fs=require("node:fs"),path=require("node:path"),crypto=require("node:crypto"),assert=require("node:assert/strict");
+const {evaluate}=require("./run_supported_set.js");
+const folder=process.argv[2]||path.join(__dirname,"results");
+const manifest=JSON.parse(fs.readFileSync(path.join(folder,"manifest.json"),"utf8"));
+const hash=bytes=>crypto.createHash("sha256").update(bytes).digest("hex");
+for(const entry of manifest.sources)assert.equal(hash(fs.readFileSync(path.join(__dirname,entry.name))),entry.sha256,entry.name+" checksum mismatch");
+const payload=fs.readFileSync(path.join(folder,manifest.payload.name));
+assert.equal(hash(payload),manifest.payload.sha256,"Result checksum mismatch");
+const repeated=JSON.stringify(evaluate(),null,2)+"\n";
+assert.equal(repeated,payload.toString("utf8"),"Deterministic rerun differs");
+console.log(JSON.stringify({status:"passed",sourceFiles:manifest.sources.length,resultSha256:manifest.payload.sha256,byteIdenticalRerun:true}));

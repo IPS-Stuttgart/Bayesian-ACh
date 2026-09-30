@@ -1,0 +1,31 @@
+{
+  "kind": "post_failure_supported_set_diagnostic",
+  "sources": [
+    {
+      "name": "protocol.md",
+      "sha256": "901e6490c814a6a7e0a3ee171ad8fdc65d29af69dbf441e3a594291d535e6e6c"
+    },
+    {
+      "name": "supported_set.js",
+      "sha256": "38c4ba13be72d7e928764736dce7a225e5290a3a14a5c10b9a535b811f37221c"
+    },
+    {
+      "name": "test_supported_set.js",
+      "sha256": "5c2992c5b9acb8561ae007395f71f5808ecd27b87709ef3f69394918cbf84abc"
+    },
+    {
+      "name": "independent_verify.py",
+      "sha256": "537c39ce0c165bb7fb5e8aaed96110e370a7c993c08432760d740c020874dd7e"
+    },
+    {
+      "name": "run_supported_set.js",
+      "sha256": "569784565e8596605d03c37cdd1b77e54babd9b260527b068e78726c27ada691"
+    }
+  ],
+  "payload": {
+    "name": "result.json",
+    "sha256": "4bb9d5ec14b8408eb6b0668c6907193a18b275545680411678a066091a223941"
+  },
+  "numericalAmendment": "NUMERICAL_AMENDMENT.md",
+  "originalManifestSha256": "7fe583720655ec36b20f614152046e11a380d49e1f912ec7eee4c855aafcf71f"
+}

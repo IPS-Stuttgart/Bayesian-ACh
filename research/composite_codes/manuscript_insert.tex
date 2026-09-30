@@ -1,0 +1,93 @@
+\subsection{Pure-candidate recovery does not identify a pure neural code}
+\label{sec:composite-identification}
+
+Recovering a generating member of a six-candidate library answers a closed-set
+question: which candidate is favored if exactly one candidate generated the
+signal? It does not establish that the underlying code is pure. In the frozen
+$N=60$ stress analysis, the locked heuristic maximin allocation achieved a
+minimum matched-pure recovery of $0.750$, yet an equal-coefficient mixture of
+gain and update elicited a pure call in $0.800$ of replicates. The flexible
+adequacy gate therefore did not provide composite-code protection. Separately,
+the certified asymptotic design had worse minimum finite recovery than the
+heuristic schedule ($0.665$ versus $0.750$). An optimization certificate for a
+pairwise separation objective is not a finite-sample certificate of mechanism
+identification.
+
+The relevant geometry is the geometry of measured, nuisance-adjusted means.
+For $y=HXa+Z\gamma+\varepsilon$, with sensor/sampling operator $H$, nuisance
+matrix $Z$, and known Gaussian covariance $\Sigma$, let $W\Sigma W^{\mathsf T}=I$
+and let $Q$ span the candidate columns after whitening and projection off $WZ$.
+Then $z=Q^{\mathsf T}Wy$ has mean $Ba$, where $B=Q^{\mathsf T}WHX$ and
+$r=\operatorname{rank}(B)$. Pure candidates are rays
+$\mathcal P_j=\{a b_j:a\geq0\}$; a prespecified positive two-candidate class is
+\begin{equation}
+ \mathcal M_{jk}(\eta)=
+ \{a[w b_j+(1-w)b_k]:a\geq0,\ \eta\leq w\leq1-\eta\}.
+ \label{eq:bounded-composite-family}
+\end{equation}
+The coefficients refer to a fixed full-grid standardization, not fractions of
+neurons or measured energy. These classes must be formed after the allowed
+measurement and nuisance transformations; separation in event space alone
+does not suffice.
+
+Two limitations follow. First, a pure ray may intersect a composite cone even
+when all pure rays differ, producing exactly identical observation laws.
+Second, no informative finite-sample procedure can uniformly certify exact
+purity against every arbitrarily small added component. For a pure mean $\mu$
+and $\mu_\epsilon=(1-\epsilon)\mu+\epsilon\nu$, whitened Gaussian laws satisfy
+\begin{equation}
+ \operatorname{TV}(P_{\mu_\epsilon},P_\mu)
+ \leq \tfrac12\epsilon\|\nu-\mu\|_2.
+\end{equation}
+If a rule certifies the pure code with probability $p$ under $\mu$, its
+false-pure probability under $\mu_\epsilon$ is at least
+$p-\epsilon\|\nu-\mu\|_2/2$. Uniform control at level $\alpha$ as
+$\epsilon\downarrow0$ therefore forces $p\leq\alpha$. A scientifically
+declared component floor, or an approximate-purity target, is necessary;
+uniform power additionally requires a signal-strength floor.
+
+\paragraph{A compatible-set alternative.}
+With known covariance and a fixed design, the common confidence region
+\begin{equation}
+ \mathcal C_\alpha(z)=
+ \{\mu:\|z-\mu\|_2^2\leq\chi^2_r(1-\alpha)\}
+\end{equation}
+can be intersected with every pure ray, bounded composite cone, and the null.
+We retain every intersecting class. A bounded-family pure certificate is issued
+only when exactly one pure ray remains, every composite class is excluded, and
+the null is excluded. If the generating mean belongs to an allowed composite,
+then coverage of that mean necessarily retains its composite class and
+prevents certification. Hence false-pure probability is at most $\alpha$
+over the entire declared continuous composite family, not merely a finite
+grid of tested weights. This uses one simultaneous coverage event and does not
+require knowing the generating pair. An empty set is reported as no
+prespecified class compatible, not as support for the least-bad candidate.
+
+\paragraph{The finite-information cost.}
+A separately specified diagnostic reused the locked allocation and globally
+standardized Table~\ref{tab:candidates} signals, with known unit Gaussian
+noise, $\eta=0.25$, and $\alpha=0.05$. All fifteen pairs were evaluated at
+weights $0.25$, $0.50$, and $0.75$, with $2{,}000$ replicates per generating
+condition. A separate level-$0.05$ full-span residual check could remove
+certificates but could not increase false-pure probability. The returned
+within-span compatible set has at least $95\%$ true-class coverage; combining
+its rejection with the separate residual gate provides only a conservative
+$90\%$ joint non-rejection bound, not a $95\%$ overall adequacy guarantee.
+At $N=60$ the
+worst tested mixture false-pure rate was $0.0035$, but the minimum correct
+pure-certificate rate was only $0.0060$. Repeating the same allocation with
+independent idealized observations gave respective rates $0.0040$ and
+$0.1375$ at $N=240$, and $0.0030$ and $0.7770$ at $N=960$. The analytic
+guarantee, rather than these Monte Carlo rates, provides continuous-class error
+control. These sample counts are not animal counts or executable protocol
+recommendations.
+
+The severe $N=60$ ambiguity has a geometric explanation: the nearest bounded
+composite lies at squared distance $0.997$--$3.633$ from each of the six pure
+means, below the common rank-six confidence radius squared $12.592$.
+Thus even a confidence ball centered at the noise-free pure mean intersects
+a composite class for every candidate. The result is a conditional cost of
+honest mechanism exclusion, not a free improvement over the original recovery
+rule. Its positive two-component, known-covariance, fixed-link assumptions
+exclude arbitrary signed, higher-order, nonlinear and biological alternatives;
+the link-function ambiguities identified above remain in force.
