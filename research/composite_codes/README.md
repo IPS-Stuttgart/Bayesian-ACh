@@ -9,12 +9,12 @@ Read `theory_and_result.md` for scientific claims and limitations, `protocol.md`
 for the specification written before simulation, and `manuscript_insert.tex`
 for integration text (check the target manuscript's candidate-table label).
 
-Run:
+From the repository root, run:
 
 ```sh
-node mixture_result/test_supported_set.js
-python3 mixture_result/independent_verify.py
-node mixture_result/verify_supported_set.js
+node research/composite_codes/test_supported_set.js
+python3 research/composite_codes/independent_verify.py
+node research/composite_codes/verify_supported_set.js
 ```
 
 The new procedure issues a certificate only relative to its explicitly bounded
